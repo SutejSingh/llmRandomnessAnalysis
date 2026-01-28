@@ -181,6 +181,20 @@ function App() {
     }
   }
 
+  const handleCsvUpload = (runs: number[][], numRuns: number, uploadedAnalysis: AnalysisData) => {
+    // Update state with uploaded data
+    setAllRuns(runs)
+    setNumRuns(numRuns)
+    setProvider('uploaded')
+    
+    // Flatten all runs for the numbers display
+    const allNumbers = runs.flat()
+    setNumbers(allNumbers)
+    
+    // Set the analysis from the backend
+    setAnalysis(uploadedAnalysis)
+  }
+
   const handleDummyData = async () => {
     setNumbers([])
     setAnalysis(null)
@@ -349,6 +363,7 @@ function App() {
           isStreaming={isStreaming}
           numbers={numbers}
           onDummyData={handleDummyData}
+          onCsvUpload={handleCsvUpload}
         />
 
         {analysis ? (

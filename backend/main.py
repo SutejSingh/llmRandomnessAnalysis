@@ -2,7 +2,7 @@
 FastAPI application - Route handlers only
 All business logic is in service modules
 """
-from fastapi import Request, Query
+from fastapi import Request, Query, UploadFile, File, HTTPException
 import json
 import logging
 
@@ -13,7 +13,7 @@ from models import PromptRequest, PDFDownloadRequest
 # Import service functions
 from generation_service import generate_numbers_service, generate_numbers_stream_service
 from analysis_service import analyze_numbers_service
-from csv_service import generate_csv
+from csv_service import generate_csv, parse_uploaded_csv
 from pdf_service import download_pdf_service
 from dummy_data_service import get_dummy_data_service, stream_dummy_data_service
 
@@ -92,6 +92,47 @@ async def get_pdf_status():
         "is_ready": latex_generator.is_ready(),
         "error": latex_generator.get_error()
     }
+
+
+@app.post("/upload/csv")
+async def upload_csv(file: UploadFile = File(...)):
+    """
+    Upload and parse CSV file with runs data
+    
+    Expected format: CSV with columns "run 1", "run 2", "run 3", etc.
+    Each column contains numeric values (floats)
+    
+    Returns:
+        Parsed runs data and metadata
+    """
+    try:
+        # Validate file type
+        if not file.filename.endswith('.csv'):
+            raise HTTPException(status_code=400, detail="File must be a CSV file (.csv extension)")
+        
+        # Parse CSV
+        runs_data, num_runs = await parse_uploaded_csv(file)
+        
+        # Store runs data for potential PDF generation
+        current_runs_data.clear()
+        current_runs_data.extend(runs_data)
+        
+        # Perform analysis on uploaded data
+        provider = "uploaded"
+        analysis = stats_analyzer.analyze_multi_run(runs_data, provider, num_runs)
+        
+        return {
+            "runs": runs_data,
+            "num_runs": num_runs,
+            "provider": provider,
+            "analysis": analysis,
+            "message": f"Successfully uploaded and analyzed {num_runs} run(s)"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error uploading CSV: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error processing CSV: {str(e)}")
 
 
 if __name__ == "__main__":
