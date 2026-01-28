@@ -1601,6 +1601,40 @@ const StatsDashboard = ({ analysis, allRuns = [] }: StatsDashboardProps) => {
             </table>
           </div>
 
+              {/* Frequency Histogram */}
+              {analysis.frequency_histogram && analysis.frequency_histogram.bins && analysis.frequency_histogram.bins.length > 0 && (
+                <div className="chart-container">
+                  <h4>Frequency Histogram Across All Runs</h4>
+                  <p style={{ fontSize: '12px', color: '#666', marginBottom: '15px', fontStyle: 'italic' }}>
+                    Distribution of number frequencies across all {analysis.num_runs} runs
+                  </p>
+                  <ResponsiveContainer width="100%" height={400}>
+                    <BarChart
+                      data={analysis.frequency_histogram.bins.map((bin: number, idx: number) => ({
+                        bin: bin.toFixed(4),
+                        frequency: analysis.frequency_histogram.frequencies[idx]
+                      }))}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis 
+                        dataKey="bin" 
+                        angle={-45}
+                        textAnchor="end"
+                        height={80}
+                        tickFormatter={(value) => typeof value === 'number' ? value.toFixed(3) : value}
+                      />
+                      <YAxis label={{ value: 'Frequency', angle: -90, position: 'insideLeft' }} />
+                      <Tooltip 
+                        formatter={(value: any) => [value, 'Frequency']}
+                        labelFormatter={(label) => `Bin Center: ${label}`}
+                      />
+                      <Bar dataKey="frequency" fill="#1E90FF" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+
               {/* Overlaid Visualizations */}
               {analysis.individual_analyses && analysis.individual_analyses.length > 0 && (
                 <div className="chart-container">

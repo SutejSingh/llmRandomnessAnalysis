@@ -272,6 +272,16 @@ class LatexGenerator:
         # Charts for Multi-run summary
         latex += r"\subsection{Multi-Run Summary Charts}" + "\n\n"
         
+        # Frequency Histogram
+        if "frequency_histogram" in analysis:
+            hist_path = self._generate_frequency_histogram_chart(analysis, temp_dir)
+            if hist_path:
+                latex += r"\begin{figure}[H]" + "\n"
+                latex += r"\centering" + "\n"
+                latex += f"\\includegraphics[width=0.8\\textwidth]{{{hist_path}}}" + "\n"
+                latex += r"\caption{Frequency Histogram Across All Runs}" + "\n"
+                latex += r"\end{figure}" + "\n\n"
+        
         # Overlaid ECDF
         if "ecdf_all_runs" in analysis:
             ecdf_path = self._generate_overlaid_ecdf_chart(analysis, temp_dir)
@@ -466,6 +476,49 @@ class LatexGenerator:
         ax.grid(True, alpha=0.3)
         
         filename = "qq_overlaid.png"
+        filepath = os.path.join(temp_dir, filename)
+        fig.savefig(filepath, dpi=150, bbox_inches='tight')
+        plt.close(fig)
+        
+        return filename
+    
+    def _generate_frequency_histogram_chart(self, analysis: Dict[str, Any], temp_dir: str) -> str:
+        """Generate frequency histogram chart across all runs"""
+        frequency_histogram = analysis.get("frequency_histogram", {})
+        bins = frequency_histogram.get("bins", [])
+        frequencies = frequency_histogram.get("frequencies", [])
+        bin_edges = frequency_histogram.get("bin_edges", [])
+        
+        if not bins or not frequencies or len(bins) == 0:
+            return None
+        
+        fig, ax = plt.subplots(figsize=(10, 6))
+        
+        # Calculate bar widths from bin_edges if available, otherwise estimate
+        if bin_edges and len(bin_edges) > 1:
+            widths = [bin_edges[i+1] - bin_edges[i] for i in range(len(bin_edges)-1)]
+            # Use bar chart with proper widths
+            ax.bar(bins, frequencies, width=widths, color='steelblue', edgecolor='black', alpha=0.7, align='center')
+        else:
+            # Fallback: estimate width from bin centers
+            if len(bins) > 1:
+                avg_width = (max(bins) - min(bins)) / len(bins) * 0.8  # 0.8 for spacing
+            else:
+                avg_width = 0.01
+            ax.bar(bins, frequencies, width=avg_width, color='steelblue', edgecolor='black', alpha=0.7)
+        
+        ax.set_xlabel('Value (Bin Center)')
+        ax.set_ylabel('Frequency')
+        ax.set_title('Frequency Histogram Across All Runs')
+        ax.grid(True, alpha=0.3, axis='y')
+        
+        # Rotate x-axis labels if there are many bins
+        if len(bins) > 20:
+            plt.xticks(rotation=45, ha='right')
+        
+        plt.tight_layout()
+        
+        filename = "frequency_histogram.png"
         filepath = os.path.join(temp_dir, filename)
         fig.savefig(filepath, dpi=150, bbox_inches='tight')
         plt.close(fig)
