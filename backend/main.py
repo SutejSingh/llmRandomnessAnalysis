@@ -28,7 +28,7 @@ import os
 
 from llm_client import LLMClient
 from stats_analyzer import StatsAnalyzer
-from latex_pdf_generator import generate_latex_pdf
+from latex_pdf_generator import LatexGenerator
 
 # Configure logging
 logging.basicConfig(
@@ -65,6 +65,8 @@ app.add_middleware(
 
 llm_client = LLMClient()
 stats_analyzer = StatsAnalyzer()
+latex_generator = LatexGenerator()  # Global PDF generator instance
+current_runs_data = []  # Store current runs data for PDF generation
 
 
 class PromptRequest(BaseModel):
@@ -159,6 +161,8 @@ async def generate_numbers_stream(request: PromptRequest):
 @app.post("/analyze")
 async def analyze_numbers(request: Request):
     """Perform comprehensive statistical analysis on generated numbers"""
+    global current_runs_data, latex_generator
+    
     try:
         body = await request.json()
         logger.info(f"Received analyze request. Keys in body: {list(body.keys())}")
@@ -180,6 +184,12 @@ async def analyze_numbers(request: Request):
                 logger.info(f"Run lengths: {run_lengths}")
                 analysis = stats_analyzer.analyze_multi_run(data.runs, data.provider, data.num_runs)
                 logger.info("Multi-run analysis completed successfully")
+                
+                # Prepare PDF asynchronously after analysis completes
+                current_runs_data = data.runs
+                logger.info("Starting PDF preparation in background")
+                latex_generator.prepare_pdf(analysis, data.runs, async_prepare=True)
+                
                 return analysis
             except ValueError as e:
                 logger.error(f"Validation error in multi-run analysis: {str(e)}", exc_info=True)
@@ -201,6 +211,13 @@ async def analyze_numbers(request: Request):
                 logger.info(f"Validated single-run data: {len(data.numbers)} numbers, provider={data.provider}")
                 analysis = stats_analyzer.analyze(data.numbers, data.provider)
                 logger.info("Single-run analysis completed successfully")
+                
+                # Prepare PDF asynchronously after analysis completes
+                # Convert single run to multi-run format for PDF generation
+                current_runs_data = [data.numbers]
+                logger.info("Starting PDF preparation in background")
+                latex_generator.prepare_pdf(analysis, current_runs_data, async_prepare=True)
+                
                 return analysis
             except ValueError as e:
                 logger.error(f"Validation error in single-run analysis: {str(e)}", exc_info=True)
@@ -1115,16 +1132,64 @@ class PDFDownloadRequest(BaseModel):
 @app.post("/download/pdf")
 async def download_pdf(request: PDFDownloadRequest):
     """Download full analysis report as PDF file with metrics, charts, and everything using LaTeX"""
+    import asyncio
+    
+    analysis = request.analysis
+    runs_data = request.runs
+    
+    # Check if PDF is already prepared and ready
+    if latex_generator.is_ready():
+        pdf_bytes = latex_generator.get_pdf_bytes()
+        if pdf_bytes:
+            logger.info("Returning prepared PDF")
+            filename = f"LLM_Randomness_Evaluation_Report_{analysis.get('provider', 'unknown')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+            return Response(
+                content=pdf_bytes,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
+    
+    # Check if PDF generation is in progress
+    status = latex_generator.get_status()
+    if status == "in_progress":
+        logger.info("PDF generation in progress, waiting...")
+        # Wait for PDF to be ready (poll every 0.5 seconds, max 60 seconds)
+        max_wait = 60
+        wait_interval = 0.5
+        waited = 0
+        while waited < max_wait:
+            await asyncio.sleep(wait_interval)
+            waited += wait_interval
+            if latex_generator.is_ready():
+                pdf_bytes = latex_generator.get_pdf_bytes()
+                if pdf_bytes:
+                    logger.info("PDF ready after waiting")
+                    filename = f"LLM_Randomness_Evaluation_Report_{analysis.get('provider', 'unknown')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+                    return Response(
+                        content=pdf_bytes,
+                        media_type="application/pdf",
+                        headers={"Content-Disposition": f"attachment; filename={filename}"}
+                    )
+            status = latex_generator.get_status()
+            if status == "error":
+                error_msg = latex_generator.get_error()
+                logger.error(f"PDF generation failed: {error_msg}")
+                raise HTTPException(status_code=500, detail=f"PDF generation failed: {error_msg}")
+        
+        # If we've waited too long, generate synchronously
+        logger.warning("PDF generation taking too long, generating synchronously")
+    
+    # If not ready or in progress, generate synchronously
     temp_dir = None
     try:
-        analysis = request.analysis
-        runs_data = request.runs
-        
+        logger.info("Generating PDF synchronously")
         # Create temporary directory for LaTeX compilation
         temp_dir = tempfile.mkdtemp()
         
-        # Generate PDF using LaTeX
-        pdf_bytes = generate_latex_pdf(analysis, runs_data, temp_dir)
+        # Generate PDF using LaTeX (create a temporary generator for this request)
+        temp_generator = LatexGenerator()
+        pdf_bytes = temp_generator._generate_latex_pdf(analysis, runs_data, temp_dir)
+        temp_generator.cleanup()
         
         filename = f"LLM_Randomness_Evaluation_Report_{analysis.get('provider', 'unknown')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
         
@@ -1248,6 +1313,17 @@ async def get_providers():
             {"id": "anthropic", "name": "Anthropic"},
             {"id": "deepseek", "name": "DeepSeek"}
         ]
+    }
+
+
+@app.get("/pdf/status")
+async def get_pdf_status():
+    """Get the current PDF generation status"""
+    status = latex_generator.get_status()
+    return {
+        "status": status,
+        "is_ready": latex_generator.is_ready(),
+        "error": latex_generator.get_error()
     }
 
 
