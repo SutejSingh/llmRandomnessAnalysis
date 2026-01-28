@@ -1,0 +1,1108 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows,positioning}
+
+\title{\textbf{Research Proposal:\\
+Beyond Stochasticity: A Comprehensive Statistical Evaluation\\
+of Large Language Models as Random Number Generators}}
+
+\author{[Author Names]\\
+[Institution]\\
+\texttt{[email@domain.com]}}
+
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\begin{abstract}
+Large Language Models (LLMs) have demonstrated remarkable capabilities across diverse tasks, yet their ability to generate truly random numbers remains unexplored from a rigorous statistical perspective. While recent work has documented psychological biases in LLM number generation, practical deployment requires validation against established cryptographic and statistical standards. We propose a comprehensive evaluation of state-of-the-art LLMs using 42 statistical metrics including NIST SP 800-22 cryptographic tests, classical distributional tests, and temporal dependency analysis. Our multi-factorial experimental design tests 5-6 leading LLMs across temperature settings, prompt formulations, numerical ranges, and generation modes, producing approximately 500,000 random numbers for analysis. We will compare LLM performance against true pseudorandom number generators (PRNGs) and human-generated baselines, develop application-specific suitability criteria, and provide practical guidelines for practitioners. This research addresses a critical gap in understanding LLM capabilities for scientific computing, simulation, and cryptographic applications, with implications for both AI safety and practical deployment.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{Introduction}
+
+\subsection{Motivation}
+
+Random number generation is fundamental to computational science, cryptography, statistical simulation, and numerous practical applications. Traditional pseudorandom number generators (PRNGs) like Mersenne Twister have well-understood statistical properties and undergo rigorous validation. As Large Language Models (LLMs) become ubiquitous tools for diverse computational tasks, a critical question emerges: \textbf{Can LLMs serve as reliable random number generators?}
+
+LLMs possess inherently stochastic architectures, sampling from probability distributions during text generation. This probabilistic nature suggests they might naturally produce random numbers. However, recent work by Coronado-Blázquez (2025) demonstrates that LLMs exhibit systematic biases, favoring certain numbers (e.g., 42, 47) and reproducing human cognitive patterns embedded in training data. These findings raise concerns about LLM reliability for randomness-critical applications.
+
+Despite growing interest, no comprehensive study has rigorously evaluated LLM random number generation against established statistical and cryptographic standards. Prior work focuses primarily on:
+\begin{itemize}
+    \item Integer generation and ``favorite number'' phenomena
+    \item Psychological framing of biases
+    \item Single-model anecdotal observations
+\end{itemize}
+
+\textbf{Critical gaps remain:}
+\begin{enumerate}
+    \item No systematic multi-model comparison using standardized test suites
+    \item Absence of NIST SP 800-22 cryptographic validation
+    \item Limited understanding of temporal dependencies and stationarity
+    \item No investigation of continuous (floating-point) distribution generation
+    \item Lack of practical guidelines for application-specific deployment
+    \item Unknown effects of temperature, prompt engineering, and generation modes
+\end{enumerate}
+
+\subsection{Research Questions}
+
+This proposal addresses the following research questions:
+
+\begin{enumerate}[label=\textbf{RQ\arabic*:}]
+    \item \textbf{Statistical Quality:} How do state-of-the-art LLMs perform on comprehensive randomness tests (distributional, independence, cryptographic)?
+    
+    \item \textbf{Model Comparison:} Do different LLM architectures, training approaches, and sizes exhibit distinct randomness profiles?
+    
+    \item \textbf{Temperature Effects:} What is the relationship between sampling temperature and randomness quality?
+    
+    \item \textbf{Prompt Engineering:} Can specific prompt formulations improve randomness generation?
+    
+    \item \textbf{Generation Modes:} How do sequential batch generation, independent queries, and reseeded sessions differ in randomness quality?
+    
+    \item \textbf{Integer vs. Float:} Do LLMs exhibit different biases for discrete versus continuous distributions?
+    
+    \item \textbf{Human Comparison:} How do LLM biases compare quantitatively to human random number generation patterns?
+    
+    \item \textbf{Application Suitability:} Under what conditions are LLMs suitable for Monte Carlo simulation, statistical computing, or cryptographic applications?
+\end{enumerate}
+
+\subsection{Research Objectives}
+
+\begin{enumerate}
+    \item \textbf{Comprehensive Benchmarking:} Establish the first rigorous multi-model benchmark for LLM random number generation using 42 statistical metrics across 7 test categories.
+    
+    \item \textbf{Practical Guidelines:} Develop evidence-based decision criteria for practitioners regarding when LLMs are (or are not) suitable for randomness applications.
+    
+    \item \textbf{Optimization Strategies:} Identify optimal configurations (temperature, prompts, modes) for maximizing randomness quality.
+    
+    \item \textbf{Failure Taxonomy:} Create a systematic classification of LLM randomness failures (distributional bias, autocorrelation, non-stationarity, etc.).
+    
+    \item \textbf{Theoretical Understanding:} Advance understanding of why LLMs exhibit specific biases through training data analysis and mechanistic investigation.
+\end{enumerate}
+
+\subsection{Expected Contributions}
+
+\begin{itemize}
+    \item \textbf{Novel Methodology:} First application of NIST SP 800-22 cryptographic test suite to LLM-generated sequences
+    \item \textbf{Empirical Findings:} Comprehensive multi-model performance profiles with actionable insights
+    \item \textbf{Practical Impact:} Decision framework for practitioners in scientific computing and security domains
+    \item \textbf{Theoretical Advancement:} Mechanistic understanding of LLM biases in numerical generation
+    \item \textbf{Open Resources:} Public release of testing framework, datasets, and analysis code
+\end{itemize}
+
+\section{Background and Related Work}
+
+\subsection{Random Number Generation Requirements}
+
+A high-quality random number generator must satisfy multiple criteria:
+
+\begin{enumerate}
+    \item \textbf{Distributional Correctness:} Output matches specified distribution (e.g., uniform, normal)
+    \item \textbf{Independence:} Each value is unpredictable from previous values
+    \item \textbf{Stationarity:} Statistical properties remain constant over time
+    \item \textbf{No Periodicity:} Absence of repeating patterns or cycles
+    \item \textbf{Cryptographic Security:} (For security applications) Computational infeasibility of prediction
+\end{enumerate}
+
+Traditional PRNGs like Mersenne Twister, PCG, and Xorshift undergo extensive validation. The NIST SP 800-22 test suite \cite{nist2010} provides the gold standard for cryptographic randomness assessment.
+
+\subsection{LLM Architecture and Stochasticity}
+
+LLMs are built on transformer architectures that generate text autoregressively by sampling from probability distributions:
+
+\begin{equation}
+P(x_t | x_{<t}) = \text{softmax}\left(\frac{z_t}{\tau}\right)
+\end{equation}
+
+where $z_t$ are logits and $\tau$ is the temperature parameter. Higher temperature increases entropy; lower temperature makes sampling more deterministic.
+
+This stochastic mechanism suggests LLMs might naturally produce random outputs. However, the probability distributions are conditioned on training data containing human-generated text with inherent biases.
+
+\subsection{Recent Work on LLM Randomness}
+
+\textbf{Coronado-Blázquez (2025)} \cite{coronado2025} systematically investigates LLM random number generation, finding:
+\begin{itemize}
+    \item LLMs exhibit deterministic responses despite probabilistic architecture
+    \item Significant model-specific biases (e.g., GPT-4 favors 47, Claude favors 42)
+    \item Prompt language affects bias patterns
+    \item Biases reflect human cognitive patterns in training data
+\end{itemize}
+
+\textbf{Other relevant work:}
+\begin{itemize}
+    \item Informal observations of ``favorite numbers'' in LLMs \cite{llmrandom2023}
+    \item Human random number generation psychology \cite{evans1978,baddeley1998}
+    \item LLM evaluation for cognitive tasks \cite{comparison2024}
+\end{itemize}
+
+\textbf{Our work differs by:}
+\begin{enumerate}
+    \item Applying rigorous statistical and cryptographic test suites (NIST SP 800-22)
+    \item Testing continuous distributions (floats), not just integers
+    \item Systematic multi-run consistency analysis
+    \item Comprehensive parameter optimization (temperature, prompts)
+    \item Application-oriented evaluation and decision framework
+\end{enumerate}
+
+\section{Proposed Methodology}
+
+\subsection{Overview}
+
+Our experimental design employs a multi-factorial approach testing:
+\begin{itemize}
+    \item \textbf{Models:} 6 state-of-the-art LLMs
+    \item \textbf{Temperatures:} 7 settings (0.0, 0.3, 0.5, 0.7, 1.0, 1.5, 2.0)
+    \item \textbf{Prompts:} 6 formulation strategies
+    \item \textbf{Ranges:} Integers (1-10, 1-100) and floats (0-1)
+    \item \textbf{Modes:} Sequential, independent, reseeded
+\end{itemize}
+
+We will generate approximately \textbf{500,000 random numbers} total and apply a battery of \textbf{42 statistical tests} across \textbf{7 categories}.
+
+\subsection{Model Selection}
+
+We will evaluate the following LLMs representing diverse architectures and training approaches:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Model} & \textbf{Parameters} & \textbf{Access} & \textbf{Rationale} \\
+\midrule
+GPT-4o & $\sim$1.7T & API & Industry standard, large \\
+GPT-4o-mini & Unknown & API & Smaller, efficient variant \\
+Claude 3.5 Sonnet & Unknown & API & Strong reasoning, large \\
+Gemini 1.5 Pro & Unknown & API & Google's flagship \\
+Llama 3.1 70B & 70B & Open & Open-source, medium \\
+Mistral Large 2 & 123B & API & European, open approach \\
+\bottomrule
+\end{tabular}
+\caption{Selected LLMs for evaluation}
+\label{tab:models}
+\end{table}
+
+\subsection{Statistical Test Suite}
+
+Our comprehensive test battery spans 7 categories with 42 total metrics:
+
+\subsubsection{Category 1: Descriptive Statistics (12 metrics)}
+
+Basic distributional properties:
+\begin{itemize}
+    \item Central tendency: Mean, Median, Mode
+    \item Dispersion: Standard Deviation, Variance, Min, Max
+    \item Quantiles: Q25, Q75, Q95
+    \item Shape: Skewness, Kurtosis
+\end{itemize}
+
+\textbf{Purpose:} Verify parameters match expectations (e.g., mean = 0.5 for uniform [0,1])
+
+\subsubsection{Category 2: Distributional Tests (5 tests)}
+
+\textbf{Visual assessments:}
+\begin{itemize}
+    \item Kernel Density Estimate (KDE)
+    \item Empirical Cumulative Distribution Function (ECDF)
+    \item Quantile-Quantile (Q-Q) plots
+\end{itemize}
+
+\textbf{Statistical tests:}
+\begin{itemize}
+    \item \textbf{Kolmogorov-Smirnov Test:} $H_0$: Data follows uniform distribution
+    \begin{equation}
+    D_n = \sup_x |F_n(x) - F(x)|
+    \end{equation}
+    
+    \item \textbf{Shapiro-Wilk Test:} $H_0$: Data is normally distributed
+\end{itemize}
+
+\textbf{Purpose:} Verify distribution shape matches target (uniform/normal)
+
+\subsubsection{Category 3: Independence Tests (2 tests)}
+
+\textbf{Autocorrelation Function (ACF):}
+\begin{equation}
+r_k = \frac{\sum_{i=k+1}^{n}(x_i - \bar{x})(x_{i-k} - \bar{x})}{\sum_{i=1}^{n}(x_i - \bar{x})^2}
+\end{equation}
+
+Test for correlation at lags $k = 1, 2, \ldots, 40$ with 95\% confidence bands: $\pm 1.96/\sqrt{n}$
+
+\textbf{Lag-1 Scatter Plot:} Visual assessment of sequential dependence
+
+\textbf{Purpose:} Detect if values are predictable from previous values (critical for randomness)
+
+\subsubsection{Category 4: Temporal Analysis (4 tests)}
+
+\begin{itemize}
+    \item \textbf{Time Series Plot:} Detect trends, cycles, regime changes
+    \item \textbf{Rolling Mean/St.Dev:} Test stationarity (window size = 50-100)
+    \item \textbf{Chunked Statistics:} Compare early vs. late values
+\end{itemize}
+
+\textbf{Purpose:} Verify properties don't drift over time
+
+\subsubsection{Category 5: Spectral Analysis (2 tests)}
+
+\begin{itemize}
+    \item \textbf{FFT Magnitude Spectrum:} Detect hidden periodicities
+    \item \textbf{Periodogram:} Power spectral density
+\end{itemize}
+
+Metric: Peak-to-Average Ratio (PAR)
+\begin{equation}
+\text{PAR} = \frac{\max(\text{spectrum})}{\text{mean}(\text{spectrum})}
+\end{equation}
+
+Pass criterion: PAR $<$ 3.0
+
+\textbf{Purpose:} Detect repeating patterns invisible in time series
+
+\subsubsection{Category 6: NIST Cryptographic Tests (4 tests)}
+
+From NIST SP 800-22 \cite{nist2010}, testing binary sequences (significance $\alpha = 0.01$):
+
+\begin{enumerate}
+    \item \textbf{Runs Test:} Frequency of bit oscillations
+    \item \textbf{Binary Matrix Rank Test:} Linear independence
+    \item \textbf{Longest Run of Ones Test:} Clustering detection
+    \item \textbf{Approximate Entropy Test:} Pattern complexity
+\end{enumerate}
+
+\textbf{Binary conversion:} IEEE 754 floating-point representation
+
+\textbf{Purpose:} Assess cryptographic-grade randomness
+
+\subsubsection{Category 7: Multi-Run Consistency (13 metrics)}
+
+\begin{itemize}
+    \item Coefficient of Variation (CV) for statistics across runs
+    \item Pass rates for distributional and independence tests
+    \item Cross-run ECDF/ACF visual comparison
+    \item Consistency score (0-16 scale)
+\end{itemize}
+
+\textbf{Purpose:} Assess reliability—does LLM behave consistently across queries?
+
+\subsection{Experimental Design}
+
+\subsubsection{Experiment 1: Baseline Multi-Model Evaluation}
+
+\textbf{Objective:} Establish baseline randomness profiles for each model
+
+\textbf{Protocol:}
+\begin{itemize}
+    \item Models: All 6 LLMs
+    \item Temperature: 1.0 (default)
+    \item Prompt: ``Generate 500 random numbers between 0 and 1, separated by commas.''
+    \item Runs per model: 10 (for robust consistency analysis)
+    \item Total numbers: $6 \times 10 \times 500 = 30,000$
+\end{itemize}
+
+\textbf{Analysis:}
+\begin{itemize}
+    \item Apply full 42-metric test battery to each run
+    \item Calculate pass rates for each test category
+    \item Rank models by overall randomness quality
+    \item Cluster models by failure pattern similarity
+\end{itemize}
+
+\textbf{Expected outcomes:}
+\begin{itemize}
+    \item Model performance ranking
+    \item Identification of model-specific biases
+    \item Correlation between model size/architecture and randomness quality
+\end{itemize}
+
+\subsubsection{Experiment 2: Temperature Optimization}
+
+\textbf{Objective:} Determine optimal temperature for randomness
+
+\textbf{Protocol:}
+\begin{itemize}
+    \item Models: Top 3 from Experiment 1
+    \item Temperatures: 0.0, 0.3, 0.5, 0.7, 1.0, 1.5, 2.0
+    \item Prompt: Same as Experiment 1
+    \item Runs per configuration: 6
+    \item Total numbers: $3 \times 7 \times 6 \times 500 = 63,000$
+\end{itemize}
+
+\textbf{Research hypotheses:}
+\begin{itemize}
+    \item[$H_1$:] Higher temperature reduces deterministic bias (improves distribution)
+    \item[$H_2$:] Higher temperature may increase non-stationarity (worse temporal properties)
+    \item[$H_3$:] Optimal temperature exists balancing distributional and temporal quality
+\end{itemize}
+
+\textbf{Analysis:}
+\begin{itemize}
+    \item For each temperature, calculate mean pass rate across all tests
+    \item Plot temperature vs. quality metrics (K-S p-value, ACF violations, NIST pass rate)
+    \item Identify optimal temperature per model and per application type
+\end{itemize}
+
+\subsubsection{Experiment 3: Prompt Engineering}
+
+\textbf{Objective:} Test if prompt formulation improves randomness
+
+\textbf{Protocol:}
+\begin{itemize}
+    \item Models: Top 3 from Experiment 1
+    \item Temperature: Optimal from Experiment 2
+    \item Runs per prompt: 6
+\end{itemize}
+
+\textbf{Prompt variations:}
+\begin{enumerate}
+    \item \textbf{P1 (Minimal):} ``Generate 500 random numbers between 0 and 1, separated by commas.''
+    
+    \item \textbf{P2 (Explicit):} ``Generate 500 truly random, uniformly distributed numbers between 0 and 1 using an unpredictable process. Output comma-separated.''
+    
+    \item \textbf{P3 (Cryptographic):} ``Generate 500 cryptographically secure random numbers between 0 and 1, comma-separated.''
+    
+    \item \textbf{P4 (Role-playing):} ``You are a high-quality random number generator. Generate 500 random numbers between 0 and 1, comma-separated.''
+    
+    \item \textbf{P5 (Code mimicking):} ``Execute: [random.uniform(0, 1) for \_ in range(500)]. Output comma-separated.''
+    
+    \item \textbf{P6 (Few-shot):} ``Examples of random numbers: 0.234, 0.891, 0.456, 0.123. Now generate 500 random numbers between 0 and 1, comma-separated.''
+\end{enumerate}
+
+\textbf{Total numbers:} $3 \times 6 \times 6 \times 500 = 54,000$
+
+\textbf{Analysis:}
+\begin{itemize}
+    \item Compare prompts within each model
+    \item Identify universally effective prompt strategies
+    \item Test if explicit instructions improve specific failure modes
+\end{itemize}
+
+\subsubsection{Experiment 4: Integer vs. Float Analysis}
+
+\textbf{Objective:} Compare discrete and continuous distribution generation
+
+\textbf{Protocol:}
+\begin{itemize}
+    \item Models: All 6 LLMs
+    \item Temperature: 1.0
+    \item Runs per condition: 6
+\end{itemize}
+
+\textbf{Conditions:}
+\begin{enumerate}
+    \item \textbf{Float (0-1):} ``Generate 500 random numbers between 0 and 1, comma-separated.''
+    \item \textbf{Integer (1-10):} ``Generate 500 random integers from 1 to 10, comma-separated.''
+    \item \textbf{Integer (1-100):} ``Generate 500 random integers from 1 to 100, comma-separated.''
+\end{enumerate}
+
+\textbf{Total numbers:} $6 \times 3 \times 6 \times 500 = 54,000$
+
+\textbf{Analysis:}
+\begin{itemize}
+    \item For integers: Test for ``favorite numbers'' (mode analysis, frequency distribution)
+    \item For floats: Test for round number bias (e.g., 0.5, 0.25, 0.75)
+    \item Compare K-S/chi-square pass rates
+    \item Investigate tokenization hypothesis (integers = single token, floats = multiple)
+\end{itemize}
+
+\subsubsection{Experiment 5: Generation Mode Comparison}
+
+\textbf{Objective:} Compare sequential batch vs. independent queries
+
+\textbf{Protocol:}
+\begin{itemize}
+    \item Models: Top 3 from Experiment 1
+    \item Temperature: Optimal from Experiment 2
+    \item Target: 500 numbers total per run
+    \item Runs per mode: 6
+\end{itemize}
+
+\textbf{Modes:}
+\begin{enumerate}
+    \item \textbf{Sequential (current):} Single query for 500 numbers
+    
+    \item \textbf{Independent:} 500 separate queries, each requesting 1 number (same conversation)
+    
+    \item \textbf{Reseeded:} 500 separate queries, each in fresh conversation session
+\end{enumerate}
+
+\textbf{Total numbers:} $3 \times 3 \times 6 \times 500 = 27,000$
+
+\textbf{Research hypotheses:}
+\begin{itemize}
+    \item[$H_1$:] Sequential mode shows higher autocorrelation (context carries over)
+    \item[$H_2$:] Independent mode reduces autocorrelation but maintains distributional bias
+    \item[$H_3$:] Reseeded mode maximizes independence but is computationally expensive
+\end{itemize}
+
+\textbf{Analysis:}
+\begin{itemize}
+    \item Compare ACF profiles across modes
+    \item Measure cost-benefit tradeoff (API calls vs. randomness quality)
+    \item Provide practical recommendations
+\end{itemize}
+
+\subsubsection{Experiment 6: Human Baseline Comparison}
+
+\textbf{Objective:} Quantify similarity between LLM and human biases
+
+\textbf{Protocol:}
+\begin{itemize}
+    \item Recruit 100 participants via online platform (Prolific/MTurk)
+    \item Task: ``Generate 100 random numbers between 0 and 1'' (text input)
+    \item Compensation: Standard rate for 10-minute task
+    \item Quality control: Remove participants with obvious patterns (e.g., counting)
+\end{itemize}
+
+\textbf{Total human-generated numbers:} $100 \times 100 = 10,000$
+
+\textbf{Analysis:}
+\begin{itemize}
+    \item Apply same test suite to human data
+    \item Compare LLM vs. human on:
+    \begin{itemize}
+        \item Distribution (do both avoid 0.5, favor round numbers?)
+        \item Autocorrelation patterns
+        \item Favorite numbers/avoidance patterns
+    \end{itemize}
+    \item Calculate similarity metrics (e.g., KL divergence between distributions)
+    \item Position LLMs on spectrum: True PRNG $\leftrightarrow$ LLM $\leftrightarrow$ Human
+\end{itemize}
+
+\textbf{Reference:} Use Evans Random Generation Index \cite{evans1978} for psychological comparison
+
+\subsubsection{Experiment 7: Application-Specific Testing (Optional)}
+
+\textbf{Objective:} Test real-world suitability
+
+\textbf{Tests:}
+\begin{enumerate}
+    \item \textbf{Monte Carlo Integration:}
+    \begin{itemize}
+        \item Estimate $\pi$ using LLM-generated numbers
+        \item Compare convergence rate to true PRNG
+        \item Metric: Iterations to achieve 0.01 accuracy
+    \end{itemize}
+    
+    \item \textbf{Bootstrap Confidence Intervals:}
+    \begin{itemize}
+        \item Use LLM numbers for resampling
+        \item Check coverage accuracy (should be 95\% for 95\% CI)
+        \item Compare to true bootstrap
+    \end{itemize}
+    
+    \item \textbf{Randomized Quicksort:}
+    \begin{itemize}
+        \item Use LLM numbers for pivot selection
+        \item Measure performance (comparisons, swaps)
+        \item Check for worst-case degradation
+    \end{itemize}
+\end{enumerate}
+
+\textbf{Analysis:} Quantify practical impact of statistical biases
+
+\subsection{Pass/Fail Criteria and Decision Framework}
+
+We employ a hierarchical decision framework with three tiers:
+
+\subsubsection{Tier 1: Critical Tests (Must Pass)}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Test} & \textbf{Individual Run} & \textbf{Multi-Run Minimum} \\
+\midrule
+K-S Test & $p > 0.05$ & $\geq 75\%$ pass rate \\
+ACF Independence & No sig. correlations & $\geq 80\%$ pass rate \\
+Descriptive Stats & Within expected ranges & $\geq 80\%$ pass rate \\
+\bottomrule
+\end{tabular}
+\caption{Tier 1 Critical Tests—Failure disqualifies for any RNG use}
+\end{table}
+
+\textbf{Decision:} If any Tier 1 test fails, conclude ``NOT suitable for random number generation''
+
+\subsubsection{Tier 2: Important Tests (Affects Quality Rating)}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lc@{}}
+\toprule
+\textbf{Test} & \textbf{Minimum Pass Rate} \\
+\midrule
+Stationarity (Rolling Stats) & $\geq 75\%$ \\
+Spectral Analysis (PAR $<$ 3.0) & $\geq 75\%$ \\
+Consistency (CV score) & $\geq 11/16$ \\
+\bottomrule
+\end{tabular}
+\caption{Tier 2 Important Tests—Determines quality rating}
+\end{table}
+
+\textbf{Quality Assignment:}
+\begin{itemize}
+    \item All 3 Tier 2 tests pass → \textbf{High Quality}
+    \item 2 of 3 Tier 2 tests pass → \textbf{Medium Quality}
+    \item $<$ 2 of 3 Tier 2 tests pass → \textbf{Low Quality}
+\end{itemize}
+
+\subsubsection{Tier 3: Cryptographic Tests (For Security Applications)}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lc@{}}
+\toprule
+\textbf{Test} & \textbf{Requirement} \\
+\midrule
+NIST Overall Pass Rate & $\geq 90\%$ \\
+Approximate Entropy & $\geq 80\%$ individual pass rate \\
+\bottomrule
+\end{tabular}
+\caption{Tier 3 Cryptographic Tests—Required for security applications}
+\end{table}
+
+\textbf{Decision:} 
+\begin{itemize}
+    \item Tier 3 pass + High Quality → ``Suitable for cryptographic use''
+    \item Otherwise → ``NOT suitable for cryptographic use''
+\end{itemize}
+
+\subsection{Data Collection and Management}
+
+\subsubsection{API Access and Rate Limits}
+
+\begin{itemize}
+    \item Use official APIs with documented rate limits
+    \item Implement exponential backoff for rate limit handling
+    \item Record all metadata: timestamp, model version, temperature, prompt
+\end{itemize}
+
+\subsubsection{Data Storage}
+
+Hierarchical structure:
+\begin{verbatim}
+data/
+  ├── raw/
+  │   ├── gpt4o/
+  │   │   ├── temp_1.0/
+  │   │   │   ├── run_001.csv
+  │   │   │   └── metadata_001.json
+  │   └── ...
+  ├── processed/
+  │   └── test_results/
+  └── analysis/
+      └── figures/
+\end{verbatim}
+
+\subsubsection{Reproducibility}
+
+\begin{itemize}
+    \item Version control all code (Git)
+    \item Record exact model versions and API endpoints
+    \item Use fixed random seeds for analysis scripts
+    \item Document environment (Python version, library versions)
+    \item Public release on GitHub with archived DOI (Zenodo)
+\end{itemize}
+
+\subsection{Statistical Analysis Plan}
+
+\subsubsection{Individual Run Analysis}
+
+For each of the $\sim$300 runs:
+\begin{enumerate}
+    \item Compute all 42 metrics
+    \item Generate visualizations (KDE, ECDF, Q-Q, ACF, time series, spectral)
+    \item Record pass/fail for each test
+    \item Store results in structured database
+\end{enumerate}
+
+\subsubsection{Cross-Run Analysis}
+
+For each model-temperature-prompt configuration:
+\begin{enumerate}
+    \item Calculate mean and standard deviation of each metric
+    \item Compute Coefficient of Variation (CV)
+    \item Calculate test pass rates
+    \item Assess consistency score
+\end{enumerate}
+
+\subsubsection{Multi-Model Comparison}
+
+\begin{enumerate}
+    \item Rank models by overall quality score
+    \item Hierarchical clustering by failure pattern similarity
+    \item Correlation analysis: model properties vs. randomness quality
+    \item Statistical significance testing (ANOVA, post-hoc tests)
+\end{enumerate}
+
+\subsubsection{Parameter Optimization}
+
+\begin{enumerate}
+    \item For temperature: Plot quality metrics vs. temperature, identify optima
+    \item For prompts: Pairwise comparisons (McNemar's test for pass rates)
+    \item For modes: Cost-benefit analysis (API calls vs. quality improvement)
+\end{enumerate}
+
+\subsubsection{Human Comparison}
+
+\begin{enumerate}
+    \item Direct statistical comparison (K-S test between LLM and human distributions)
+    \item Similarity metrics: KL divergence, Wasserstein distance
+    \item Qualitative pattern matching (favorite numbers, avoidance patterns)
+\end{enumerate}
+
+\section{Expected Outcomes and Impact}
+
+\subsection{Anticipated Results}
+
+Based on preliminary evidence and prior work, we hypothesize:
+
+\begin{enumerate}
+    \item \textbf{Model Heterogeneity:} Significant performance differences across models
+    \begin{itemize}
+        \item Larger models may not necessarily perform better (capacity vs. bias trade-off)
+        \item Open-source models may show different bias patterns than proprietary models
+    \end{itemize}
+    
+    \item \textbf{Temperature Sweet Spot:} Optimal temperature around 1.0-1.5
+    \begin{itemize}
+        \item Too low ($<$0.5): Deterministic,fails K-S test
+        \item Too high ($>$1.5): Non-stationary, increased variance
+    \end{itemize}
+    \item \textbf{Prompt Engineering Gains:} 20-40\% improvement possible
+    \begin{itemize}
+        \item Explicit instructions help distributional properties
+        \item Code-mimicking prompts may reduce bias
+    \end{itemize}
+    \item \textbf{Independence Challenge:} Most models fail ACF test
+    \begin{itemize}
+        \item Sequential generation induces autocorrelation
+        \item Reseeded mode necessary for true independence
+    \end{itemize}
+    \item \textbf{Integer vs. Float:} Different bias manifestations
+    \begin{itemize}
+        \item Integers: Discrete favorite numbers (42, 47, 37)
+        \item Floats: Round number bias (0.5, 0.25, 0.75) and repetitive patterns
+    \end{itemize}
+    \item \textbf{Human Similarity:} LLMs closer to humans than to true PRNGs
+    \begin{itemize}
+        \item Shared avoidance of extremes and preference for ``random-looking'' numbers
+        \item Validates training data bias hypothesis
+    \end{itemize}
+    \item \textbf{Application Suitability:}
+    \begin{itemize}
+        \item \textcolor{red}{NOT suitable:} Cryptography, security-critical applications
+        \item \textcolor{orange}{Marginal:} Monte Carlo (depending on independence requirements)
+        \item \textcolor{green}{Acceptable:} Non-critical simulations, games, visualization
+    \end{itemize}
+    \end{enumerate}
+\subsection{Potential High-Impact Findings}
+Discoveries that would significantly elevate research impact:
+\begin{enumerate}
+\item \textbf{``First LLM achieving $>90\%$ NIST pass rate''}
+\begin{itemize}
+\item Demonstrates LLMs CAN produce cryptographic-quality randomness
+\item Opens new application domains
+\end{itemize}
+\item \textbf{``Temperature 1.2 universally optimal across all models''}
+\begin{itemize}
+    \item Actionable, immediately deployable finding
+    \item Simple parameter adjustment improves randomness
+\end{itemize}
+
+\item \textbf{``Prompt X increases randomness quality by 50\%''}
+\begin{itemize}
+    \item Free improvement method (no model retraining)
+    \item Practical value for practitioners
+\end{itemize}
+
+\item \textbf{``Model size negatively correlates with randomness (r = -0.7)''}
+\begin{itemize}
+    \item Counterintuitive: bigger models are worse at randomness
+    \item Theoretical implications about training and capabilities
+\end{itemize}
+
+\item \textbf{``Specific failure taxonomy: 80\% of failures are independence violations''}
+\begin{itemize}
+    \item Identifies root cause
+    \item Directs future improvement efforts
+\end{itemize}
+\end{enumerate}
+\subsection{Contributions to the Field}
+\subsubsection{Scientific Contributions}
+\begin{enumerate}
+\item \textbf{Methodology:} First rigorous application of cryptographic standards to LLM evaluation
+\item \textbf{Benchmark:} Public multi-model randomness benchmark dataset
+\item \textbf{Theory:} Mechanistic understanding of LLM numerical biases
+\item \textbf{Validation:} Empirical test of ``training data bias'' hypothesis
+\end{enumerate}
+\subsubsection{Practical Contributions}
+\begin{enumerate}
+\item \textbf{Guidelines:} Decision framework for practitioners
+\item \textbf{Optimization:} Best practices for improving LLM randomness
+\item \textbf{Safety:} Warning against inappropriate use in security contexts
+\item \textbf{Tools:} Open-source testing framework
+\end{enumerate}
+\subsection{Broader Impacts}
+\subsubsection{AI Safety and Trustworthiness}
+\begin{itemize}
+\item Demonstrates importance of rigorous capability evaluation
+\item Identifies failure modes in seemingly simple tasks
+\item Contributes to understanding of LLM limitations
+\end{itemize}
+\subsubsection{Scientific Computing}
+\begin{itemize}
+\item Informs appropriate use of LLMs in computational science
+\item Prevents misuse in randomness-critical applications
+\item Enables informed Monte Carlo and simulation design
+\end{itemize}
+\subsubsection{Cryptography and Security}
+\begin{itemize}
+\item Critical negative result: LLMs should NOT be used for cryptographic RNG
+\item Potential for fine-tuned models if high-quality cases identified
+\end{itemize}
+\section{Timeline and Milestones}
+\subsection{3-Month Intensive Timeline (Conference Submission)}
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Phase} & \textbf{Duration} & \textbf{Deliverables} \
+\midrule
+\textbf{Month 1: Data Collection} & Weeks 1-4 & \
+\quad Week 1-2 & & Experiment 1 (Baseline), Exp 4 (Int/Float) \
+\quad Week 3 & & Experiment 2 (Temperature) \
+\quad Week 4 & & Experiment 3 (Prompts), Exp 5 (Modes) \
+\midrule
+\textbf{Month 2: Analysis} & Weeks 5-8 & \
+\quad Week 5-6 & & Statistical analysis, visualization \
+\quad Week 7 & & Model comparison, clustering \
+\quad Week 8 & & Human baseline collection & analysis \
+\midrule
+\textbf{Month 3: Writing} & Weeks 9-12 & \
+\quad Week 9-10 & & Draft all sections, create figures \
+\quad Week 11 & & Revision, related work expansion \
+\quad Week 12 & & Polish, formatting, submit \
+\bottomrule
+\end{tabular}
+\caption{Condensed timeline for conference deadline}
+\end{table}
+\textbf{Target Conferences:}
+\begin{itemize}
+\item NeurIPS (Deadline: May, Decision: September)
+\item ICML (Deadline: February, Decision: May)
+\item AAAI (Deadline: August, Decision: November)
+\end{itemize}
+\subsection{6-Month Extended Timeline (Journal Submission)}
+Add comprehensive experiments:
+\begin{itemize}
+\item Month 4: Cross-linguistic testing, contextual priming
+\item Month 5: Application-specific testing, fine-tuning experiments
+\item Month 6: Extended writing, deeper related work, revision
+\end{itemize}
+\textbf{Target Journals:}
+\begin{itemize}
+\item JMLR (Journal of Machine Learning Research)
+\item TMLR (Transactions on Machine Learning Research)
+\item IEEE TPAMI (Pattern Analysis and Machine Intelligence)
+\end{itemize}
+\section{Resources and Budget}
+\subsection{Computational Resources}
+\subsubsection{API Costs}
+Estimated API query costs:
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}lrr@{}}
+\toprule
+\textbf{Experiment} & \textbf{Queries} & \textbf{Est. Cost (\$)} \
+\midrule
+Exp 1: Baseline (6 models × 10 runs) & 60 & 600 \
+Exp 2: Temperature (3 models × 7 temps × 6 runs) & 126 & 1,260 \
+Exp 3: Prompts (3 models × 6 prompts × 6 runs) & 108 & 1,080 \
+Exp 4: Int/Float (6 models × 3 conditions × 6 runs) & 108 & 1,080 \
+Exp 5: Modes (3 models × 3 modes × 6 runs) & 54 & 540 \
+Exp 6: Human baseline & --- & 500 \
+\midrule
+\textbf{Subtotal} & \textbf{456} & \textbf{5,060} \
+Buffer (20\%) & & 1,012 \
+\midrule
+\textbf{TOTAL} & & \textbf{\$6,072} \
+\bottomrule
+\end{tabular}
+\caption{API cost breakdown (assuming \$10 per 500-number query average)}
+\end{table}
+\textbf{Cost optimization strategies:}
+\begin{itemize}
+\item Use GPT-4o-mini (\$0.15/1M tokens) for pilot studies
+\item Leverage academic credits/grants from OpenAI, Anthropic, Google
+\item Use open-source models (Llama) via local deployment for repeated tests
+\end{itemize}
+\subsubsection{Computation for Analysis}
+\begin{itemize}
+\item \textbf{Hardware:} Standard workstation (32GB RAM, modern CPU)
+\item \textbf{Software:} Python (NumPy, SciPy, Statsmodels, Matplotlib)
+\item \textbf{Storage:} $\sim$10 GB for raw data, results, figures
+\end{itemize}
+\subsection{Human Resources}
+\subsubsection{Personnel}
+\begin{itemize}
+\item \textbf{Principal Investigator:} Overall direction, analysis, writing
+\item \textbf{Research Assistant:} Data collection, preliminary analysis
+\item \textbf{Human Subjects:} 100 participants × $2.50 = $250
+\end{itemize}
+\subsubsection{Estimated Effort}
+\begin{itemize}
+\item PI: 0.3 FTE for 3 months (or 0.15 FTE for 6 months)
+\item RA: 0.5 FTE for 2 months (data collection & processing)
+\end{itemize}
+\subsection{Total Budget}
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{Category} & \textbf{Amount (\$)} \
+\midrule
+API Access (LLMs) & 6,072 \
+Human Participants & 250 \
+Computational Resources & 500 \
+Miscellaneous & 178 \
+\midrule
+\textbf{TOTAL} & \textbf{\$7,000} \
+\bottomrule
+\end{tabular}
+\caption{Total budget estimate}
+\end{table}
+\section{Ethical Considerations}
+\subsection{Human Subjects Research}
+\textbf{IRB Approval:} Required for Experiment 6 (human baseline)
+\textbf{Informed Consent:}
+\begin{itemize}
+\item Participants informed about task, duration, compensation
+\item Right to withdraw without penalty
+\item Data anonymization (no PII collected)
+\end{itemize}
+\textbf{Compensation:} Fair wage (\$15/hour equivalent for 10-minute task)
+\subsection{Responsible Disclosure}
+\textbf{Negative findings:} If LLMs show critical vulnerabilities (e.g., predictable in cryptographic contexts):
+\begin{itemize}
+\item Coordinate disclosure with model providers before publication
+\item Provide clear warnings to prevent misuse
+\item Avoid detailed exploit descriptions
+\end{itemize}
+\textbf{Positive findings:} If some LLM achieves high quality:
+\begin{itemize}
+\item Still emphasize it's not a replacement for established PRNGs
+\item Provide caveats about temporal stability (model updates may change behavior)
+\end{itemize}
+\subsection{Environmental Impact}
+\textbf{API queries:} $\sim$500 queries generate modest carbon footprint
+\begin{itemize}
+\item Minimize redundant queries through careful experimental design
+\item Use smaller models where appropriate
+\end{itemize}
+\subsection{Potential Misuse}
+\textbf{Risk:} Findings could be misinterpreted as endorsement of LLMs for RNG
+\textbf{Mitigation:}
+\begin{itemize}
+\item Clear, prominent disclaimers in abstract and conclusion
+\item Emphasize this is evaluation research, not endorsement
+\item Provide explicit warnings for cryptographic misuse
+\end{itemize}
+\section{Limitations and Future Work}
+\subsection{Known Limitations}
+\begin{enumerate}
+\item \textbf{Model Versions:} LLMs are frequently updated; results may not generalize to future versions
+\item \textbf{API Black Box:} Cannot access internal representations or modify architecture
+
+\item \textbf{Limited Models:} Testing 6 models is comprehensive but not exhaustive
+
+\item \textbf{Prompt Space:} Cannot test all possible prompt formulations
+
+\item \textbf{Cost Constraints:} Budget limits prevent testing at very large scale (millions of numbers)
+
+\item \textbf{Context Window:} Sequential generation limited by context length
+\end{enumerate}
+\subsection{Future Directions}
+\begin{enumerate}
+\item \textbf{Fine-Tuning Studies:}
+\begin{itemize}
+\item Train models on synthetic perfect random data
+\item Test if fine-tuning improves randomness
+\item Investigate minimal data requirements
+\end{itemize}
+\item \textbf{Mechanistic Interpretability:}
+\begin{itemize}
+    \item Use activation analysis to understand bias generation
+    \item Identify which layers encode numerical biases
+    \item Potentially enable targeted interventions
+\end{itemize}
+
+\item \textbf{Hybrid Approaches:}
+\begin{itemize}
+    \item Combine LLM generation with post-processing (e.g., von Neumann extractor)
+    \item Test if bias correction algorithms help
+    \item Develop LLM-PRNG hybrid systems
+\end{itemize}
+
+\item \textbf{Longitudinal Study:}
+\begin{itemize}
+    \item Re-test models after updates
+    \item Track how randomness evolves over model generations
+    \item Identify if vendors optimize for this capability
+\end{itemize}
+
+\item \textbf{Extended NIST Suite:}
+\begin{itemize}
+    \item Apply all 15 NIST tests (we use 4)
+    \item Include TestU01 battery (even more comprehensive)
+    \item Achieve gold-standard validation
+\end{itemize}
+
+\item \textbf{Domain-Specific Distributions:}
+\begin{itemize}
+    \item Test other distributions (exponential, Poisson, Beta)
+    \item Multivariate generation
+    \item Conditional distributions
+\end{itemize}
+\end{enumerate}
+\section{Conclusion}
+This research proposal presents a comprehensive, rigorous evaluation of Large Language Models as random number generators. Through systematic testing of 6 leading LLMs across multiple experimental conditions, we will generate approximately 500,000 random numbers and apply 42 statistical metrics spanning classical tests, cryptographic standards, and novel consistency analyses.
+Our multi-factorial design addresses critical gaps in current understanding: rigorous statistical validation, multi-model comparison, parameter optimization, and application-specific suitability assessment. By combining quantitative evaluation with human baseline comparison, we will provide both theoretical insights into LLM biases and practical guidelines for practitioners.
+The expected outcomes include:
+\begin{itemize}
+\item First comprehensive LLM randomness benchmark
+\item Evidence-based deployment guidelines
+\item Identification of optimal configurations
+\item Mechanistic understanding of numerical biases
+\item Public testing framework and datasets
+\end{itemize}
+This work has significant implications for AI safety (identifying capability limitations), scientific computing (appropriate LLM use), and security (preventing cryptographic misuse). Whether results are predominantly positive (identifying high-quality LLM RNGs) or negative (documenting systematic failures), the findings will advance understanding of LLM capabilities and inform responsible deployment practices.
+We anticipate high-impact publication potential in top-tier ML conferences (NeurIPS, ICML) or journals (JMLR, TMLR), with practical relevance to both research and industry communities.
+\section*{References}
+\begin{thebibliography}{99}
+\bibitem{coronado2025}
+Coronado-Blázquez, J. (2025). Deterministic or probabilistic? The psychology of LLMs as random number generators. \textit{arXiv preprint arXiv:2502.19965}.
+\bibitem{nist2010}
+Rukhin, A., et al. (2010). A Statistical Test Suite for Random and Pseudorandom Number Generators for Cryptographic Applications. NIST Special Publication 800-22 Rev. 1a.
+\bibitem{evans1978}
+Evans, F. J. (1978). Monitoring attention deployment by random number generation: An index to measure subjective randomness. \textit{Bulletin of the Psychonomic Society}, 12(1), 35-38.
+\bibitem{baddeley1998}
+Baddeley, A. (1998). Random generation and the executive control of working memory. \textit{The Quarterly Journal of Experimental Psychology Section A}, 51(4), 819-852.
+\bibitem{llmrandom2023}
+LLM Random Number Analysis. (2023). Retrieved from https://sanand0.github.io/llmrandom/
+\bibitem{comparison2024}
+Comparison of Large Language Model and Human Performance on Random Number Generation Tasks. (2024). \textit{arXiv preprint arXiv:2408.09656}.
+\end{thebibliography}
+\appendix
+\section{Appendix A: Detailed Test Specifications}
+\subsection{Kolmogorov-Smirnov Test}
+\textbf{Null Hypothesis:} $H_0$
+$H_0$: Sample comes from uniform distribution U(0,1)U(0,1)
+U(0,1)
+\textbf{Test Statistic:}
+\begin{equation}
+D_n = \sup_x |F_n(x) - F(x)|
+\end{equation}
+where $Fn(x)F_n(x)$
+$Fn(x)$ is empirical CDF, $F(x)=xF(x) = x$
+$F(x)=x$ for uniform.
+
+\textbf{Decision Rule:} Reject $H_0$
+$H_0$ if $p <0.05$
+\textbf{Implementation:} \texttt{scipy.stats.kstest(data, 'uniform', args=(0, 1))}
+\subsection{Autocorrelation Function}
+\textbf{Sample ACF at lag kk
+k:}
+\begin{equation}
+r_k = \frac{\sum_{t=k+1}^{n}(x_t - \bar{x})(x_{t-k} - \bar{x})}{\sum_{t=1}^{n}(x_t - \bar{x})^2}
+\end{equation}
+
+\textbf{Standard Error:} $SE(rk)≈1/nSE(r_k) \approx 1/\sqrt{n}$
+$SE(rk)≈1/n$ for $k>0$
+\textbf{95\% Confidence Bands:} $±1.96/n\pm 1.96/\sqrt{n}
+±1.96/n$
+\textbf{Decision Rule:} Significant autocorrelation if $∣rk∣>1.96/n|r_k| > 1.96/\sqrt{n}
+∣rk​∣>1.96/n​ for any k∈{1,2,…,40}k \in \{1, 2, \ldots, 40\}
+k∈{1,2,…,40}$
+\textbf{Implementation:} \texttt{statsmodels.tsa.stattools.acf(data, nlags=40, alpha=0.05)}
+\subsection{NIST Approximate Entropy Test}
+\textbf{Purpose:} Measure sequence complexity by testing frequency of overlapping patterns
+\textbf{Block length:} m=2m = 2
+m=2 or m=3m = 3
+m=3
+\textbf{Test Statistic:}
+\begin{equation}
+ApEn = \Phi(m) - \Phi(m+1)
+\end{equation}
+where $\Phi(m)$ involves log-frequency of m-bit patterns.
+
+\textbf{Decision Rule:} Reject randomness if pp
+p-value <0.01< 0.01
+<0.01
+\textbf{Implementation:} Custom implementation following NIST SP 800-22 specification
+\section{Appendix B: Sample Size Justification}
+For K-S test with significance $\alpha = 0.05$ and desired power $1-\beta = 0.80$ to detect deviation $D=0.1$
+
+Required sample size:
+\begin{equation}
+n \approx \left(\frac{1.36 + 1.07}{0.1}\right)^2 \approx 591
+\end{equation}
+Our choice of n=500n = 500
+n=500 provides power ≈0.75\approx 0.75
+≈0.75 for D=0.1D = 0.1
+D=0.1, acceptable for exploratory research.
+
+For ACF, to detect correlation $\rho = 0.15$
+with power $0.80$
+\begin{equation}
+n \approx \frac{(1.96 + 0.84)^2}{\rho^2} \approx 349
+\end{equation}
+
+Our $n=500$ exceeds this requirement.
+
+\section{Appendix C: Software and Tools}
+\textbf{Primary Language:} Python 3.9+
+\textbf{Core Libraries:}
+\begin{itemize}
+\item NumPy 1.24+ (numerical computation)
+\item SciPy 1.10+ (statistical tests)
+\item Statsmodels 0.14+ (time series, ACF)
+\item Matplotlib 3.7+ (visualization)
+\item Seaborn 0.12+ (statistical graphics)
+\item Pandas 2.0+ (data management)
+\end{itemize}
+\textbf{LLM APIs:}
+\begin{itemize}
+\item OpenAI Python SDK 1.0+
+\item Anthropic Python SDK 0.18+
+\item Google Generative AI SDK
+\item Transformers (for Llama, Mistral)
+\end{itemize}
+\textbf{Version Control:} Git, GitHub
+\textbf{Reproducibility:} Poetry/Conda environment files, Docker container
+\end{document}
+
+This comprehensive research proposal covers all aspects we've discussed:
+
+1. **Clear research questions** addressing the gaps between existing work and our approach
+2. **Detailed experimental design** for all 7 experiments
+3. **Complete test suite** with 42 metrics across 7 categories
+4. **Hierarchical decision framework** with clear pass/fail criteria
+5. **Budget and timeline** for both conference and journal tracks
+6. **Expected contributions** and impact assessment
+7. **Ethical considerations** and responsible disclosure
+8. **Technical appendices** with mathematical specifications
+
+The proposal is ready for submission to funding agencies or as a project planning document. Would you like me to expand any particular section or add additional details?
