@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import axios from 'axios'
 import NumberStream from './NumberStream'
 import './ControlPanel.css'
+
+const API_BASE = 'http://localhost:8000'
 
 interface ControlPanelProps {
   provider: string
@@ -17,6 +20,7 @@ interface ControlPanelProps {
   isStreaming: boolean
   numbers: number[]
   onDummyData?: () => void
+  onCsvUpload?: (runs: number[][], numRuns: number, analysis: any) => void
 }
 
 const ControlPanel = ({
@@ -33,11 +37,15 @@ const ControlPanel = ({
   onGenerate,
   isStreaming,
   numbers,
-  onDummyData
+  onDummyData,
+  onCsvUpload
 }: ControlPanelProps) => {
   // Local state for input values to allow empty during typing
   const [countInput, setCountInput] = useState<string>(count.toString())
   const [numRunsInput, setNumRunsInput] = useState<string>(numRuns.toString())
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   
   // Sync local state when props change (but not during user typing)
   useEffect(() => {
@@ -102,6 +110,54 @@ const ControlPanel = ({
 
   const handleResetPrompt = () => {
     setSystemPrompt(getDefaultPrompt())
+  }
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    if (!file.name.endsWith('.csv')) {
+      setUploadError('Please select a CSV file (.csv extension)')
+      return
+    }
+
+    setIsUploading(true)
+    setUploadError(null)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await axios.post(`${API_BASE}/upload/csv`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      })
+
+      const { runs, num_runs, analysis } = response.data
+
+      if (onCsvUpload) {
+        onCsvUpload(runs, num_runs, analysis)
+      }
+    } catch (error) {
+      console.error('CSV upload error:', error)
+      if (axios.isAxiosError(error)) {
+        const errorMessage = error.response?.data?.detail || error.message || 'Failed to upload CSV'
+        setUploadError(errorMessage)
+      } else {
+        setUploadError('Failed to upload CSV file')
+      }
+    } finally {
+      setIsUploading(false)
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+  }
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click()
   }
 
   // Initialize prompt on mount and update when batch mode or count changes
@@ -268,9 +324,43 @@ const ControlPanel = ({
         </div>
 
         <div className="control-group" style={{ marginTop: '20px', paddingTop: '20px', borderTop: '2px solid #e0e0e0' }}>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            accept=".csv"
+            style={{ display: 'none' }}
+            disabled={isStreaming || isUploading}
+          />
+          <button
+            onClick={handleUploadClick}
+            disabled={isStreaming || isUploading}
+            className="generate-button"
+            style={{ width: '100%', backgroundColor: '#4a90e2' }}
+          >
+            <span className="button-icon">{isUploading ? '⏳' : '📁'}</span>
+            <span>{isUploading ? 'Uploading...' : 'Upload CSV File'}</span>
+          </button>
+          {uploadError && (
+            <p style={{ fontSize: '12px', color: '#d32f2f', marginTop: '10px', textAlign: 'center' }}>
+              {uploadError}
+            </p>
+          )}
+          <div style={{ fontSize: '12px', color: '#666', marginTop: '10px', textAlign: 'center', padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+            <strong>CSV Format Required:</strong>
+            <br />
+            Columns must be named: <code>run 1</code>, <code>run 2</code>, <code>run 3</code>, etc.
+            <br />
+            Each column should contain numeric values (one per row).
+            <br />
+            <em>Example:</em> <code>run 1,run 2,run 3</code>
+          </div>
+        </div>
+
+        <div className="control-group" style={{ marginTop: '20px', paddingTop: '20px', borderTop: '2px solid #e0e0e0' }}>
           <button
             onClick={onDummyData}
-            disabled={isStreaming}
+            disabled={isStreaming || isUploading}
             className="generate-button"
             style={{ width: '100%', backgroundColor: '#666' }}
           >
