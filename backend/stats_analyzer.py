@@ -697,6 +697,36 @@ class StatsAnalyzer:
         longest_run_test_passed_count = int(sum(longest_run_test_passed))
         approximate_entropy_test_passed_count = int(sum(approximate_entropy_test_passed))
         
+        # Calculate frequency histogram across all runs
+        # Combine all numbers from all runs
+        all_numbers = []
+        for run_numbers in runs:
+            all_numbers.extend(run_numbers)
+        
+        all_numbers_arr = np.array(all_numbers)
+        
+        # Calculate frequency histogram
+        # Use bins to handle continuous data - use 50 bins by default
+        min_val = float(np.min(all_numbers_arr))
+        max_val = float(np.max(all_numbers_arr))
+        num_bins = min(50, len(np.unique(all_numbers_arr)))  # Use unique count if less than 50
+        
+        if num_bins > 0:
+            counts, bin_edges = np.histogram(all_numbers_arr, bins=num_bins)
+            bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+            
+            frequency_histogram = {
+                "bins": [float(x) for x in bin_centers.tolist()],
+                "frequencies": [int(x) for x in counts.tolist()],
+                "bin_edges": [float(x) for x in bin_edges.tolist()]
+            }
+        else:
+            frequency_histogram = {
+                "bins": [],
+                "frequencies": [],
+                "bin_edges": []
+            }
+        
         # Convert aggregate_stats to ensure all numpy types are converted
         converted_aggregate_stats = self._convert_numpy_types(aggregate_stats)
         
@@ -718,7 +748,8 @@ class StatsAnalyzer:
                 "approximate_entropy_test_passed_count": approximate_entropy_test_passed_count
             },
             "autocorrelation_table": autocorr_info,
-            "ecdf_all_runs": all_ecdf_data
+            "ecdf_all_runs": all_ecdf_data,
+            "frequency_histogram": frequency_histogram
         }
         
         # Include individual_analyses with proper numpy type conversion
