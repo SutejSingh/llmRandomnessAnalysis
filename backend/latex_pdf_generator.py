@@ -203,8 +203,111 @@ class LatexGenerator:
         
         return pdflatex_cmd
     
+    def _normalize_analysis_to_multi_run(self, analysis: Dict[str, Any], runs_data: List[List[float]]) -> Dict[str, Any]:
+        """
+        If analysis is single-run format (from analyze(numbers)), convert it to multi-run format
+        so the rest of the PDF generation works unchanged.
+        """
+        if not analysis:
+            return analysis
+        # Multi-run format has aggregate_stats and individual_analyses (list with at least one element)
+        individual = analysis.get("individual_analyses", [])
+        if isinstance(individual, list) and len(individual) > 0 and analysis.get("aggregate_stats") is not None:
+            return analysis
+        
+        # Single-run: has basic_stats at top level, no aggregate_stats / no individual_analyses list
+        basic = analysis.get("basic_stats", {})
+        if not basic:
+            return analysis
+        
+        # Build multi-run structure from single-run analysis
+        dist = analysis.get("distribution", {})
+        is_uniform = dist.get("is_uniform", {})
+        nist = analysis.get("nist_tests", {})
+        range_behavior = analysis.get("range_behavior", {})
+        independence = analysis.get("independence", {})
+        
+        # Test results (1 run)
+        ks_p = is_uniform.get("ks_p", 0)
+        ks_pass = "1/1" if (isinstance(ks_p, (int, float)) and ks_p > 0.05) else "0/1"
+        def nist_pass(key):
+            t = nist.get(key, {})
+            return "1/1" if t.get("passed", False) else "0/1"
+        
+        test_results = {
+            "ks_uniformity_passed": ks_pass,
+            "runs_test_passed": nist_pass("runs_test"),
+            "binary_matrix_rank_test_passed": nist_pass("binary_matrix_rank_test"),
+            "longest_run_of_ones_test_passed": nist_pass("longest_run_of_ones_test"),
+            "approximate_entropy_test_passed": nist_pass("approximate_entropy_test"),
+        }
+        
+        # Aggregate stats (one run: std_dev of mean = 0, range = 0)
+        mean_val = basic.get("mean", 0)
+        std_val = basic.get("std", 0)
+        skew_val = basic.get("skewness", 0)
+        kurt_val = basic.get("kurtosis", 0)
+        aggregate_stats = {
+            "mean": {"mean": mean_val, "std_dev": 0.0, "range": 0.0},
+            "std_dev": {"mean": std_val, "std_dev": 0.0, "range": 0.0},
+            "skewness": {"mean": skew_val, "std_dev": 0.0, "range": 0.0},
+            "kurtosis": {"mean": kurt_val, "std_dev": 0.0, "range": 0.0},
+        }
+        
+        # Autocorrelation table (one run)
+        autocorr = independence.get("autocorrelation", {})
+        lags = autocorr.get("lags", [])
+        values = autocorr.get("values", [])
+        significant_lags = []
+        max_corr = 0.0
+        if lags and values:
+            for lag, corr in zip(lags, values):
+                if abs(corr) > 0.2:
+                    significant_lags.append(lag)
+                if abs(corr) > max_corr:
+                    max_corr = abs(corr)
+        autocorrelation_table = [{
+            "run": 1,
+            "significant_lags": significant_lags if significant_lags else ["None"],
+            "max_correlation": float(max_corr)
+        }]
+        
+        # ECDF all runs (one run)
+        ecdf = range_behavior.get("ecdf", {})
+        ecdf_x = ecdf.get("x", [])
+        ecdf_y = ecdf.get("y", [])
+        ecdf_all_runs = [{"run": 1, "x": ecdf_x, "y": ecdf_y}] if (ecdf_x and ecdf_y) else []
+        
+        # Frequency histogram from distribution.histogram
+        hist = dist.get("histogram", {})
+        counts = hist.get("counts", [])
+        edges = hist.get("edges", [])
+        if counts and edges and len(edges) == len(counts) + 1:
+            bin_centers = [(edges[i] + edges[i + 1]) / 2 for i in range(len(edges) - 1)]
+            frequency_histogram = {
+                "bins": bin_centers,
+                "frequencies": list(counts),
+                "bin_edges": list(edges)
+            }
+        else:
+            frequency_histogram = {"bins": [], "frequencies": [], "bin_edges": []}
+        
+        normalized = dict(analysis)
+        normalized["num_runs"] = 1
+        normalized["count_per_run"] = analysis.get("count", len(runs_data[0]) if runs_data and runs_data[0] else 0)
+        normalized["test_results"] = test_results
+        normalized["aggregate_stats"] = aggregate_stats
+        normalized["individual_analyses"] = [analysis]
+        normalized["autocorrelation_table"] = autocorrelation_table
+        normalized["ecdf_all_runs"] = ecdf_all_runs
+        normalized["frequency_histogram"] = frequency_histogram
+        return normalized
+    
     def _generate_latex_content(self, analysis: Dict[str, Any], runs_data: List[List[float]], temp_dir: str) -> str:
         """Generate LaTeX document content"""
+        
+        # Normalize single-run analysis to multi-run format so tables and charts get data
+        analysis = self._normalize_analysis_to_multi_run(analysis, runs_data)
         
         # Start LaTeX document
         latex = r"""\documentclass[11pt,a4paper]{article}
@@ -250,12 +353,11 @@ class LatexGenerator:
             "approximate_entropy_test_passed": ("NIST Approximate Entropy Test", 0.01),
         }
         
-        # Iterate through available tests dynamically
+        # Iterate through available tests (always show all tests; use 0/N if key missing)
         for test_key, (display_name, p_threshold) in test_mapping.items():
-            if test_key in test_results:
-                passed_value = test_results.get(test_key, f"0/{num_runs}")
-                latex += f"\\textbf{{{display_name}}}\\\\[0.5em]\n"
-                latex += f"{passed_value} runs passed (p > {p_threshold:.2f})\\\\[1em]\n\n"
+            passed_value = test_results.get(test_key, f"0/{num_runs}")
+            latex += f"\\textbf{{{display_name}}}\\\\[0.5em]\n"
+            latex += f"{passed_value} runs passed (p > {p_threshold:.2f})\\\\[1em]\n\n"
         
         # Aggregate Statistics Table
         latex += r"\subsection{Aggregate Statistics Across Runs}" + "\n\n"
