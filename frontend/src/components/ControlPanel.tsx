@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import NumberStream from './NumberStream'
-import './ControlPanel.css'
+import '../styles/ControlPanel.css'
 
 const API_BASE = 'http://localhost:8000'
 
@@ -10,6 +10,8 @@ interface ControlPanelProps {
   setProvider: (provider: string) => void
   systemPrompt: string
   setSystemPrompt: (prompt: string) => void
+  userPrompt: string
+  setUserPrompt: (prompt: string) => void
   count: number
   setCount: (count: number) => void
   batchMode: boolean
@@ -21,6 +23,7 @@ interface ControlPanelProps {
   numbers: number[]
   onDummyData?: () => void
   onCsvUpload?: (runs: number[][], numRuns: number, analysis: any) => void
+  analysisReady?: boolean
 }
 
 const ControlPanel = ({
@@ -28,6 +31,8 @@ const ControlPanel = ({
   setProvider,
   systemPrompt,
   setSystemPrompt,
+  userPrompt,
+  setUserPrompt,
   count,
   setCount,
   batchMode,
@@ -38,7 +43,8 @@ const ControlPanel = ({
   isStreaming,
   numbers,
   onDummyData,
-  onCsvUpload
+  onCsvUpload,
+  analysisReady = false
 }: ControlPanelProps) => {
   // Local state for input values to allow empty during typing
   const [countInput, setCountInput] = useState<string>(count.toString())
@@ -46,6 +52,7 @@ const ControlPanel = ({
   const [isUploading, setIsUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isCollapsed, setIsCollapsed] = useState(false)
   
   // Sync local state when props change (but not during user typing)
   useEffect(() => {
@@ -55,6 +62,13 @@ const ControlPanel = ({
   useEffect(() => {
     setNumRunsInput(numRuns.toString())
   }, [numRuns])
+
+  // Auto-collapse when analysis is ready to present
+  useEffect(() => {
+    if (analysisReady) {
+      setIsCollapsed(true)
+    }
+  }, [analysisReady])
 
   const defaultPromptsOneByOne = {
     openai: "You are a random number generator. Generate a single random number between 0 and 1. Respond with ONLY the number, no explanation, no formatting, just the decimal number.",
@@ -186,7 +200,20 @@ const ControlPanel = ({
   }, [batchMode, count, provider])
 
   return (
-    <div className="control-panel">
+    <div className={`control-panel ${isCollapsed ? 'control-panel--collapsed' : ''}`}>
+      <button
+        type="button"
+        className="control-panel__carat"
+        onClick={() => setIsCollapsed((c) => !c)}
+        title={isCollapsed ? 'Expand controls' : 'Collapse controls'}
+        aria-label={isCollapsed ? 'Expand controls' : 'Collapse controls'}
+      >
+        <span className="control-panel__carat-icon" aria-hidden>
+          {isCollapsed ? '▶' : '▼'}
+        </span>
+        {isCollapsed && <span className="control-panel__carat-label">Controls</span>}
+      </button>
+      <div className="control-panel__content">
       <div className="control-section">
         <div className="control-group">
           <label className="control-label">
@@ -313,47 +340,50 @@ const ControlPanel = ({
         </div>
 
         <div className="generate-button-container">
-          <button
-            onClick={onGenerate}
-            disabled={isStreaming}
-            className="generate-button"
-          >
-            <span className="button-icon">{isStreaming ? '⏳' : '🧮'}</span>
-            <span>{isStreaming ? 'Generating...' : 'Generate Random Numbers'}</span>
-          </button>
-        </div>
-
-        <div className="control-group" style={{ marginTop: '20px', paddingTop: '20px', borderTop: '2px solid #e0e0e0' }}>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            accept=".csv"
-            style={{ display: 'none' }}
-            disabled={isStreaming || isUploading}
-          />
-          <button
-            onClick={handleUploadClick}
-            disabled={isStreaming || isUploading}
-            className="generate-button"
-            style={{ width: '100%', backgroundColor: '#4a90e2' }}
-          >
-            <span className="button-icon">{isUploading ? '⏳' : '📁'}</span>
-            <span>{isUploading ? 'Uploading...' : 'Upload CSV File'}</span>
-          </button>
+          <div className="generate-upload-row">
+            <div className="generate-button-cell">
+              <button
+                onClick={onGenerate}
+                disabled={isStreaming}
+                className="generate-button"
+              >
+                <span className="button-icon">{isStreaming ? '⏳' : '🧮'}</span>
+                <span>{isStreaming ? 'Generating...' : 'Generate Random Numbers'}</span>
+              </button>
+            </div>
+            <span className="generate-or-upload-or">OR</span>
+            <div className="upload-button-cell">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept=".csv"
+                style={{ display: 'none' }}
+                disabled={isStreaming || isUploading}
+              />
+              <button
+                onClick={handleUploadClick}
+                disabled={isStreaming || isUploading}
+                className="generate-button upload-csv-button"
+                style={{ backgroundColor: '#4a90e2' }}
+              >
+                <span className="button-icon">{isUploading ? '⏳' : '📁'}</span>
+                <span>{isUploading ? 'Uploading...' : 'Upload CSV File'}</span>
+              </button>
+            </div>
+          </div>
           {uploadError && (
-            <p style={{ fontSize: '12px', color: '#d32f2f', marginTop: '10px', textAlign: 'center' }}>
+            <p className="upload-error-message">
               {uploadError}
             </p>
           )}
-          <div style={{ fontSize: '12px', color: '#666', marginTop: '10px', textAlign: 'center', padding: '10px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+          <div className="upload-csv-instructions">
             <strong>CSV Format Required:</strong>
             <br />
             Columns must be named: <code>run 1</code>, <code>run 2</code>, <code>run 3</code>, etc.
             <br />
             Each column should contain numeric values (one per row).
             <br />
-            <em>Example:</em> <code>run 1,run 2,run 3</code>
           </div>
         </div>
 
@@ -394,9 +424,26 @@ const ControlPanel = ({
           </button>
         </div>
 
+        <div className="prompt-editor">
+          <label>
+            <strong className="system-prompt-label">User Prompt:</strong>
+            <textarea
+              value={userPrompt}
+              onChange={(e) => setUserPrompt(e.target.value)}
+              placeholder="Optional. Leave empty to send only the system prompt to the LLM."
+              rows={2}
+              disabled={isStreaming}
+            />
+          </label>
+          <p style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+            Leave empty to send only the system prompt; no user message is sent.
+          </p>
+        </div>
+
         <div className="number-stream-container">
           <NumberStream numbers={numbers} isStreaming={isStreaming} />
         </div>
+      </div>
       </div>
     </div>
   )

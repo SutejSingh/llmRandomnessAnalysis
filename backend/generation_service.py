@@ -36,6 +36,7 @@ async def generate_numbers_service(
         numbers = await llm_client.generate_random_numbers(
             provider=request.provider,
             system_prompt=request.system_prompt,
+            user_prompt=request.user_prompt,
             count=request.count or 100,
             api_key=request.api_key
         )
@@ -74,6 +75,7 @@ async def generate_numbers_stream_service(
             async for number in llm_client.generate_random_numbers_stream(
                 provider=request.provider,
                 system_prompt=request.system_prompt,
+                user_prompt=request.user_prompt,
                 count=request.count or 100,
                 api_key=request.api_key,
                 batch_mode=request.batch_mode or False
