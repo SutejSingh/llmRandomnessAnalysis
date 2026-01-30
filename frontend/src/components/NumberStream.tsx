@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import './NumberStream.css'
+import '../styles/NumberStream.css'
 
 interface NumberStreamProps {
   numbers: number[]
@@ -100,7 +100,7 @@ const NumberStream = ({ numbers, isStreaming }: NumberStreamProps) => {
       </div>
       <div 
         ref={containerRef}
-        className={`stream-container ${isExpanded ? 'expanded' : ''}`}
+        className={`stream-container ${isExpanded ? 'expanded' : ''} ${numbers.length === 0 ? 'empty' : ''}`}
       >
         {numbers.length === 0 ? (
           <div className="empty-stream">No numbers generated yet. Click "Generate Random Numbers" to start.</div>

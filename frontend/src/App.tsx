@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import axios from 'axios'
 import ControlPanel from './components/ControlPanel'
 import StatsDashboard from './components/StatsDashboard'
-import './App.css'
+import './styles/App.css'
 
 const API_BASE = 'http://localhost:8000'
 
@@ -31,6 +31,7 @@ function App() {
   const [analysis, setAnalysis] = useState<AnalysisData | null>(null)
   const [provider, setProvider] = useState('openai')
   const [systemPrompt, setSystemPrompt] = useState('')
+  const [userPrompt, setUserPrompt] = useState('')
   const [count, setCount] = useState(100)
   const [batchMode, setBatchMode] = useState(false)
   const [numRuns, setNumRuns] = useState(1)
@@ -57,6 +58,7 @@ function App() {
             provider,
             count,
             system_prompt: systemPrompt && systemPrompt.trim() ? systemPrompt.trim() : undefined,
+            user_prompt: userPrompt && userPrompt.trim() ? userPrompt.trim() : undefined,
             batch_mode: batchMode
           })
         })
@@ -353,6 +355,8 @@ function App() {
           setProvider={setProvider}
           systemPrompt={systemPrompt}
           setSystemPrompt={setSystemPrompt}
+          userPrompt={userPrompt}
+          setUserPrompt={setUserPrompt}
           count={count}
           setCount={setCount}
           batchMode={batchMode}
@@ -364,6 +368,7 @@ function App() {
           numbers={numbers}
           onDummyData={handleDummyData}
           onCsvUpload={handleCsvUpload}
+          analysisReady={!!analysis}
         />
 
         {analysis ? (
