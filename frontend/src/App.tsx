@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import ControlPanel from './components/ControlPanel'
 import StatsDashboard from './components/StatsDashboard'
@@ -36,6 +36,15 @@ function App() {
   const [batchMode, setBatchMode] = useState(false)
   const [numRuns, setNumRuns] = useState(1)
   const [allRuns, setAllRuns] = useState<number[][]>([])
+  const numbersBatchRef = useRef<number[]>([])
+  const BATCH_SIZE = 50
+
+  const flushNumbersBatch = () => {
+    if (numbersBatchRef.current.length > 0) {
+      setNumbers((prev) => [...prev, ...numbersBatchRef.current])
+      numbersBatchRef.current = []
+    }
+  }
 
   const handleGenerate = async () => {
     setNumbers([])
@@ -91,7 +100,11 @@ function App() {
                 }
                 if (data.number !== undefined) {
                   currentRun.push(data.number)
-                  setNumbers((prev) => [...prev, data.number])
+                  numbersBatchRef.current.push(data.number)
+                  if (numbersBatchRef.current.length >= BATCH_SIZE) {
+                    setNumbers((prev) => [...prev, ...numbersBatchRef.current])
+                    numbersBatchRef.current = []
+                  }
                 }
               } catch (e) {
                 // Skip invalid JSON
@@ -99,7 +112,7 @@ function App() {
             }
           }
         }
-        
+        flushNumbersBatch()
         runs.push([...currentRun])
         setAllRuns([...runs])
       }
@@ -232,7 +245,8 @@ function App() {
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             const dataStr = line.slice(6)
-            if (dataStr === '[DONE]') {
+              if (dataStr === '[DONE]') {
+              flushNumbersBatch()
               // End of current run
               if (currentRun.length > 0) {
                 runs.push([...currentRun])
@@ -253,7 +267,11 @@ function App() {
               }
               if (data.number !== undefined) {
                 currentRun.push(data.number)
-                setNumbers((prev) => [...prev, data.number])
+                numbersBatchRef.current.push(data.number)
+                if (numbersBatchRef.current.length >= BATCH_SIZE) {
+                  setNumbers((prev) => [...prev, ...numbersBatchRef.current])
+                  numbersBatchRef.current = []
+                }
               }
             } catch (e) {
               // Skip invalid JSON
@@ -267,6 +285,7 @@ function App() {
         }
       }
 
+      flushNumbersBatch()
       // Handle any remaining data
       if (currentRun.length > 0) {
         runs.push([...currentRun])

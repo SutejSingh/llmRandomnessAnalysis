@@ -49,4 +49,3 @@ app.add_middleware(
 llm_client = LLMClient()
 stats_analyzer = StatsAnalyzer()
 latex_generator = LatexGenerator()  # Global PDF generator instance
-current_runs_data = []  # Store current runs data for PDF generation

@@ -29,6 +29,11 @@ class MultiRunData(BaseModel):
 
 
 class PDFDownloadRequest(BaseModel):
-    """Request model for PDF download"""
+    """Request model for PDF download. Analysis contains all chart data; runs not required."""
     analysis: Dict[str, Any]
+
+
+class CSVDownloadRequest(BaseModel):
+    """Request model for CSV download. Sends runs in body to avoid URL length limits."""
     runs: List[List[float]]
+    provider: str = "manual"

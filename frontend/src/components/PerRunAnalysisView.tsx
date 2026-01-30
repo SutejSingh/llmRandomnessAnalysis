@@ -57,7 +57,6 @@ const PerRunAnalysisView = ({
 
   const setRun = (r: number) => {
     onSelectedRunChange(r)
-    onPerRunTabChange('basic')
   }
 
   return (

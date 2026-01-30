@@ -17,15 +17,13 @@ logger = logging.getLogger(__name__)
 
 async def download_pdf_service(
     analysis: Dict[str, Any],
-    runs_data: List[List[float]],
     latex_generator: LatexGenerator
 ) -> Response:
     """
-    Handle PDF download request
+    Handle PDF download request. PDF is generated from analysis only (no runs_data).
     
     Args:
-        analysis: Analysis data dictionary
-        runs_data: List of runs (list of numbers)
+        analysis: Analysis data dictionary (contains all chart data)
         latex_generator: LatexGenerator instance
         
     Returns:
@@ -38,9 +36,9 @@ async def download_pdf_service(
         # Create temporary directory for LaTeX compilation
         temp_dir = tempfile.mkdtemp()
         
-        # Generate PDF using LaTeX (create a temporary generator for this request)
+        # Generate PDF using LaTeX (analysis-only; chart data is in analysis)
         temp_generator = LatexGenerator()
-        pdf_bytes = temp_generator._generate_latex_pdf(analysis, runs_data, temp_dir)
+        pdf_bytes = temp_generator._generate_latex_pdf(analysis, None, temp_dir)
         temp_generator.cleanup()
         
         filename = f"LLM_Randomness_Evaluation_Report_{analysis.get('provider', 'unknown')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"

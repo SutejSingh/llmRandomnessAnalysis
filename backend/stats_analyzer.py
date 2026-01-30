@@ -3,8 +3,11 @@ from scipy import stats
 from scipy.fft import fft
 from scipy.stats import normaltest, kstest, chi2
 import pandas as pd
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 import struct
+
+# Cap points for visualization to keep payloads and chart generation bounded
+MAX_CHART_POINTS = 5000
 
 
 class StatsAnalyzer:
@@ -29,9 +32,33 @@ class StatsAnalyzer:
             return [self._convert_numpy_types(item) for item in obj]
         else:
             return obj
+
+    @staticmethod
+    def _downsample(x: np.ndarray, y: np.ndarray, max_points: int) -> Tuple[List[float], List[float]]:
+        """Downsample two equal-length arrays to at most max_points, preserving first and last."""
+        n = len(x)
+        if n <= max_points:
+            return x.tolist(), y.tolist()
+        indices = np.linspace(0, n - 1, max_points, dtype=int)
+        indices = np.unique(indices)
+        if indices[-1] != n - 1:
+            indices = np.append(indices, n - 1)
+        return x[indices].tolist(), y[indices].tolist()
+
+    @staticmethod
+    def _downsample_single(arr: np.ndarray, max_points: int) -> List[float]:
+        """Downsample a single array to at most max_points, preserving first and last."""
+        n = len(arr)
+        if n <= max_points:
+            return arr.tolist()
+        indices = np.linspace(0, n - 1, max_points, dtype=int)
+        indices = np.unique(indices)
+        if indices[-1] != n - 1:
+            indices = np.append(indices, n - 1)
+        return arr[indices].tolist()
     
     def analyze(self, numbers: List[float], provider: str) -> Dict[str, Any]:
-        """Perform comprehensive statistical analysis"""
+        """Perform comprehensive statistical analysis. Does not include raw_data in response."""
         arr = np.array(numbers)
         
         analysis = {
@@ -44,7 +71,6 @@ class StatsAnalyzer:
             "stationarity": self._stationarity_analysis(arr),
             "spectral": self._spectral_analysis(arr),
             "nist_tests": self._nist_tests(arr),
-            "raw_data": numbers  # Include for frontend visualization
         }
         
         return analysis
@@ -67,7 +93,7 @@ class StatsAnalyzer:
         }
     
     def _distribution_analysis(self, arr: np.ndarray) -> Dict[str, Any]:
-        """Analyze distribution shape"""
+        """Analyze distribution shape. Chart data capped at MAX_CHART_POINTS."""
         # Uniformity test (Kolmogorov-Smirnov)
         # Test against uniform distribution on the actual data range
         min_val = float(arr.min())
@@ -77,17 +103,20 @@ class StatsAnalyzer:
         # Histogram data for visualization
         hist_counts, hist_edges = np.histogram(arr, bins=50)
         
-        # KDE approximation (sample points)
-        kde_x = np.linspace(arr.min(), arr.max(), 100)
+        # KDE approximation (sample points) - use MAX_CHART_POINTS
+        n_kde = min(MAX_CHART_POINTS, len(arr) + 1)
+        kde_x = np.linspace(arr.min(), arr.max(), n_kde)
         kde_y = stats.gaussian_kde(arr)(kde_x)
         
-        # Q-Q plot data (against uniform distribution)
+        # Q-Q plot data (against uniform distribution), downsampled
         sorted_arr = np.sort(arr)
-        # Generate theoretical quantiles from uniform distribution on [min, max]
         theoretical_quantiles = stats.uniform.ppf(
             np.linspace(0.01, 0.99, len(sorted_arr)),
             loc=min_val,
             scale=max_val - min_val
+        )
+        sample_list, theory_list = self._downsample(
+            sorted_arr, np.array(theoretical_quantiles), MAX_CHART_POINTS
         )
         
         return {
@@ -104,16 +133,17 @@ class StatsAnalyzer:
                 "y": kde_y.tolist()
             },
             "qq_plot": {
-                "sample": sorted_arr.tolist(),
-                "theoretical": theoretical_quantiles.tolist()
+                "sample": sample_list,
+                "theoretical": theory_list
             }
         }
     
     def _range_behavior(self, arr: np.ndarray) -> Dict[str, Any]:
-        """Analyze range and boundary behavior"""
+        """Analyze range and boundary behavior. ECDF capped at MAX_CHART_POINTS."""
         # ECDF (Empirical Cumulative Distribution Function)
         sorted_arr = np.sort(arr)
         ecdf_y = np.arange(1, len(sorted_arr) + 1) / len(sorted_arr)
+        ecdf_x_list, ecdf_y_list = self._downsample(sorted_arr, ecdf_y, MAX_CHART_POINTS)
         
         # Boundary analysis
         min_val, max_val = arr.min(), arr.max()
@@ -129,8 +159,8 @@ class StatsAnalyzer:
         
         return {
             "ecdf": {
-                "x": sorted_arr.tolist(),
-                "y": ecdf_y.tolist()
+                "x": ecdf_x_list,
+                "y": ecdf_y_list
             },
             "boundaries": {
                 "min": float(min_val),
@@ -160,15 +190,15 @@ class StatsAnalyzer:
             else:
                 autocorrs.append(0.0)
         
-        # Lag-1 scatter plot data
-        lag1_x = arr[:-1].tolist()
-        lag1_y = arr[1:].tolist()
+        # Lag-1 scatter plot data (downsampled)
+        lag1_x_arr = arr[:-1]
+        lag1_y_arr = arr[1:]
+        lag1_x_list, lag1_y_list = self._downsample(lag1_x_arr, lag1_y_arr, MAX_CHART_POINTS)
         
-        # Time series data
-        time_series = {
-            "index": list(range(len(arr))),
-            "values": arr.tolist()
-        }
+        # Time series data (downsampled)
+        indices = np.arange(len(arr))
+        idx_list = self._downsample_single(indices.astype(float), MAX_CHART_POINTS)
+        values_list = self._downsample_single(arr, MAX_CHART_POINTS)
         
         return {
             "autocorrelation": {
@@ -176,10 +206,13 @@ class StatsAnalyzer:
                 "values": autocorrs
             },
             "lag1_scatter": {
-                "x": lag1_x,
-                "y": lag1_y
+                "x": lag1_x_list,
+                "y": lag1_y_list
             },
-            "time_series": time_series
+            "time_series": {
+                "index": idx_list,
+                "values": values_list
+            }
         }
     
     def _stationarity_analysis(self, arr: np.ndarray) -> Dict[str, Any]:
@@ -209,14 +242,21 @@ class StatsAnalyzer:
                     "max": float(np.max(chunk))
                 })
         
+        # Downsample rolling series for visualization
+        rolling_idx = np.arange(len(rolling_mean))
+        rolling_mean_vals = rolling_mean.fillna(0).values
+        rolling_std_vals = rolling_std.fillna(0).values
+        rm_idx_list, rm_val_list = self._downsample(rolling_idx.astype(float), rolling_mean_vals, MAX_CHART_POINTS)
+        _, rs_val_list = self._downsample(rolling_idx.astype(float), rolling_std_vals, MAX_CHART_POINTS)
+        
         return {
             "rolling_mean": {
-                "index": list(range(len(rolling_mean))),
-                "values": rolling_mean.fillna(0).tolist()
+                "index": rm_idx_list,
+                "values": rm_val_list
             },
             "rolling_std": {
-                "index": list(range(len(rolling_std))),
-                "values": rolling_std.fillna(0).tolist()
+                "index": rm_idx_list,
+                "values": rs_val_list
             },
             "chunks": chunk_stats
         }
@@ -239,13 +279,24 @@ class StatsAnalyzer:
         freqs_positive = freqs[positive_freq_idx]
         magnitude_positive = fft_magnitude[positive_freq_idx]
         
-        # Periodogram (power spectrum)
+        # Periodogram (power spectrum), cap length for visualization
         power = magnitude_positive ** 2
+        n_spec = min(len(freqs_positive), MAX_CHART_POINTS)
+        if n_spec < len(freqs_positive):
+            idx = np.linspace(0, len(freqs_positive) - 1, n_spec, dtype=int)
+            idx = np.unique(idx)
+            freqs_list = freqs_positive[idx].tolist()
+            mag_list = magnitude_positive[idx].tolist()
+            power_list = power[idx].tolist()
+        else:
+            freqs_list = freqs_positive.tolist()
+            mag_list = magnitude_positive.tolist()
+            power_list = power.tolist()
         
         return {
-            "frequencies": freqs_positive.tolist(),
-            "magnitude": magnitude_positive.tolist(),
-            "power": power.tolist()
+            "frequencies": freqs_list,
+            "magnitude": mag_list,
+            "power": power_list
         }
     
     def _numbers_to_binary(self, numbers: np.ndarray) -> List[int]:
@@ -647,13 +698,14 @@ class StatsAnalyzer:
                 "max_correlation": float(max_corr)
             })
             
-            # ECDF data for this run
+            # ECDF data for this run (downsampled for visualization)
             sorted_arr = np.sort(arr)
             ecdf_y = np.arange(1, len(sorted_arr) + 1) / len(sorted_arr)
+            ecdf_x_list, ecdf_y_list = self._downsample(sorted_arr, ecdf_y, MAX_CHART_POINTS)
             all_ecdf_data.append({
                 "run": int(run_idx + 1),
-                "x": [float(x) for x in sorted_arr.tolist()],
-                "y": [float(y) for y in ecdf_y.tolist()]
+                "x": [float(x) for x in ecdf_x_list],
+                "y": [float(y) for y in ecdf_y_list]
             })
             
             # Full analysis for this run
@@ -727,6 +779,15 @@ class StatsAnalyzer:
                 "bin_edges": []
             }
         
+        # Combined KDE across all runs (Phase 6 - for frontend KDE view)
+        n_kde = min(MAX_CHART_POINTS, len(all_numbers_arr) + 1)
+        combined_kde_x = np.linspace(min_val, max_val, n_kde)
+        combined_kde_y = stats.gaussian_kde(all_numbers_arr)(combined_kde_x)
+        combined_kde = {
+            "x": [float(x) for x in combined_kde_x.tolist()],
+            "y": [float(y) for y in combined_kde_y.tolist()]
+        }
+        
         # Convert aggregate_stats to ensure all numpy types are converted
         converted_aggregate_stats = self._convert_numpy_types(aggregate_stats)
         
@@ -749,7 +810,8 @@ class StatsAnalyzer:
             },
             "autocorrelation_table": autocorr_info,
             "ecdf_all_runs": all_ecdf_data,
-            "frequency_histogram": frequency_histogram
+            "frequency_histogram": frequency_histogram,
+            "combined_kde": combined_kde
         }
         
         # Include individual_analyses with proper numpy type conversion

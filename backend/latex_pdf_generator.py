@@ -69,13 +69,13 @@ class LatexGenerator:
                 return self._pdf_bytes
             return None
     
-    def prepare_pdf(self, analysis: Dict[str, Any], runs_data: List[List[float]], async_prepare: bool = False):
+    def prepare_pdf(self, analysis: Dict[str, Any], runs_data: Optional[List[List[float]]] = None, async_prepare: bool = False):
         """
-        Prepare PDF from analysis data
+        Prepare PDF from analysis data. runs_data is optional.
         
         Args:
             analysis: Analysis data dictionary
-            runs_data: List of runs (list of numbers)
+            runs_data: Optional list of runs (unused when analysis contains all chart data)
             async_prepare: If True, prepare PDF in background thread
         """
         if async_prepare:
@@ -89,7 +89,7 @@ class LatexGenerator:
         else:
             self._prepare_pdf_sync(analysis, runs_data)
     
-    def _prepare_pdf_sync(self, analysis: Dict[str, Any], runs_data: List[List[float]]):
+    def _prepare_pdf_sync(self, analysis: Dict[str, Any], runs_data: Optional[List[List[float]]] = None):
         """Synchronously prepare PDF (internal method)"""
         with self._lock:
             if self._status == "in_progress":
@@ -106,7 +106,7 @@ class LatexGenerator:
             self._temp_dir = temp_dir
             
             # Generate PDF
-            pdf_bytes = self._generate_latex_pdf(analysis, runs_data, temp_dir)
+            pdf_bytes = self._generate_latex_pdf(analysis, runs_data or None, temp_dir)
             
             with self._lock:
                 self._pdf_bytes = pdf_bytes
@@ -125,13 +125,13 @@ class LatexGenerator:
             # We'll clean it up when the object is destroyed or when a new PDF is generated
             pass
     
-    def _generate_latex_pdf(self, analysis: Dict[str, Any], runs_data: List[List[float]], temp_dir: str) -> bytes:
+    def _generate_latex_pdf(self, analysis: Dict[str, Any], runs_data: Optional[List[List[float]]] = None, temp_dir: str = "") -> bytes:
         """
-        Generate LaTeX code and compile to PDF
+        Generate LaTeX code and compile to PDF. runs_data is optional; all chart data comes from analysis.
         
         Args:
             analysis: Analysis data dictionary
-            runs_data: List of runs (list of numbers)
+            runs_data: Optional list of runs (unused when analysis contains all chart data)
             temp_dir: Temporary directory for files
             
         Returns:
@@ -203,7 +203,7 @@ class LatexGenerator:
         
         return pdflatex_cmd
     
-    def _normalize_analysis_to_multi_run(self, analysis: Dict[str, Any], runs_data: List[List[float]]) -> Dict[str, Any]:
+    def _normalize_analysis_to_multi_run(self, analysis: Dict[str, Any], runs_data: Optional[List[List[float]]] = None) -> Dict[str, Any]:
         """
         If analysis is single-run format (from analyze(numbers)), convert it to multi-run format
         so the rest of the PDF generation works unchanged.
@@ -294,7 +294,10 @@ class LatexGenerator:
         
         normalized = dict(analysis)
         normalized["num_runs"] = 1
-        normalized["count_per_run"] = analysis.get("count", len(runs_data[0]) if runs_data and runs_data[0] else 0)
+        count_per_run = analysis.get("count_per_run") or analysis.get("count")
+        if count_per_run is None and runs_data and runs_data[0]:
+            count_per_run = len(runs_data[0])
+        normalized["count_per_run"] = count_per_run or 0
         normalized["test_results"] = test_results
         normalized["aggregate_stats"] = aggregate_stats
         normalized["individual_analyses"] = [analysis]
@@ -303,8 +306,8 @@ class LatexGenerator:
         normalized["frequency_histogram"] = frequency_histogram
         return normalized
     
-    def _generate_latex_content(self, analysis: Dict[str, Any], runs_data: List[List[float]], temp_dir: str) -> str:
-        """Generate LaTeX document content"""
+    def _generate_latex_content(self, analysis: Dict[str, Any], runs_data: Optional[List[List[float]]] = None, temp_dir: str = "") -> str:
+        """Generate LaTeX document content. runs_data is optional; chart data comes from analysis."""
         
         # Normalize single-run analysis to multi-run format so tables and charts get data
         analysis = self._normalize_analysis_to_multi_run(analysis, runs_data)
@@ -1118,17 +1121,10 @@ class LatexGenerator:
 
 
 # Backward compatibility: Keep the old function interface
-def generate_latex_pdf(analysis: Dict[str, Any], runs_data: List[List[float]], temp_dir: str) -> bytes:
+def generate_latex_pdf(analysis: Dict[str, Any], runs_data: Optional[List[List[float]]] = None, temp_dir: str = "") -> bytes:
     """
-    Generate LaTeX code and compile to PDF (backward compatibility function)
-    
-    Args:
-        analysis: Analysis data dictionary
-        runs_data: List of runs (list of numbers)
-        temp_dir: Temporary directory for files
-        
-    Returns:
-        PDF bytes
+    Generate LaTeX code and compile to PDF (backward compatibility function).
+    runs_data is optional; all chart data comes from analysis.
     """
     generator = LatexGenerator()
     return generator._generate_latex_pdf(analysis, runs_data, temp_dir)

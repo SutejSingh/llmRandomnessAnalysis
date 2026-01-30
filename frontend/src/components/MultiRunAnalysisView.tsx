@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, type ComponentProps } from 'react'
+import { createPortal } from 'react-dom'
 import {
   LineChart,
   Line,
@@ -9,14 +10,104 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  ScatterChart,
-  Scatter,
   AreaChart,
-  Area
+  Area,
+  ReferenceLine
 } from 'recharts'
 import { OverlaidBoxPlots } from './charts'
 
+export type PinnedTooltip = { payload: Array<{ name?: string; value?: number; color?: string }>; label: unknown }
+
+/** Recharts tooltip content: fixed bottom-right. When pinned, shows pinned data so user can scroll; otherwise follows hover. */
+function AnchoredScrollableTooltip(props: {
+  active?: boolean
+  payload?: Array<{ name?: string; value?: number; color?: string }>
+  label?: string
+  labelFormatter?: (label: unknown) => string
+  formatter?: (value: number) => [string, string]
+  pinned?: PinnedTooltip | null
+  onHover?: (payload: Array<{ name?: string; value?: number; color?: string }>, label: unknown) => void
+}) {
+  const { active, payload = [], label, labelFormatter, formatter, pinned, onHover } = props
+  const showPinned = pinned?.payload?.length
+  const showLive = active && payload?.length
+  if (showLive && !showPinned && onHover) onHover(payload, label)
+  const data = showPinned ? pinned! : (showLive ? { payload, label } : null)
+  if (!data?.payload?.length) return null
+  const labelStr = data.label != null && labelFormatter ? labelFormatter(data.label) : String(data.label ?? '')
+  const content = (
+    <div
+      className="anchored-chart-tooltip"
+      data-anchored-tooltip
+      style={{
+        position: 'fixed',
+        right: 24,
+        bottom: 24,
+        zIndex: 1000,
+        background: '#fff',
+        border: '1px solid #ccc',
+        borderRadius: 8,
+        padding: '10px 14px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        maxHeight: 220,
+        overflowY: 'auto',
+        fontSize: 12,
+      }}
+    >
+      {labelStr && <div style={{ marginBottom: 6, fontWeight: 600, color: '#333' }}>{labelStr}</div>}
+      <ul style={{ margin: 0, paddingLeft: 16, listStyle: 'none' }}>
+        {data.payload.map((entry, i) => {
+          const formatted = formatter && entry.value != null ? formatter(entry.value) : null
+          const displayValue = formatted != null ? formatted[0] : String(entry.value ?? '')
+          const name = (formatted != null && formatted[1]) ? formatted[1] : (entry.name ?? '')
+          return (
+            <li key={i} style={{ marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 10, height: 10, borderRadius: 2, background: entry.color ?? '#888', flexShrink: 0 }} />
+              <span style={{ color: '#666' }}>{name}:</span>
+              <span style={{ fontFamily: 'monospace' }}>{displayValue}</span>
+            </li>
+          )
+        })}
+      </ul>
+      <div style={{ marginTop: 6, fontSize: 11, color: '#999' }}>
+        {showPinned ? 'Click chart or elsewhere to close' : 'Scroll if needed · click chart to pin'}
+      </div>
+    </div>
+  )
+  return createPortal(content, document.body)
+}
+
 const QQ_COLORS = ['#DC143C', '#228B22', '#1E90FF', '#FF8C00', '#9370DB', '#00CED1', '#FF1493', '#FFD700', '#8B4513', '#32CD32', '#000000']
+
+// Cap overlaid Q-Q points to avoid browser crash (Recharts + heavy unifiedData build)
+const MAX_QQ_DISPLAY_POINTS = 350
+
+function downsampleQqForDisplay(sample: number[], theoretical: number[], maxPoints: number): { sample: number[]; theoretical: number[] } {
+  const n = sample.length
+  if (n <= maxPoints) return { sample: [...sample], theoretical: [...theoretical] }
+  const outSample: number[] = []
+  const outTheoretical: number[] = []
+  const step = (n - 1) / (maxPoints - 1)
+  for (let i = 0; i < maxPoints; i++) {
+    const idx = i === maxPoints - 1 ? n - 1 : Math.min(Math.round(i * step), n - 1)
+    outSample.push(sample[idx])
+    outTheoretical.push(theoretical[idx])
+  }
+  return { sample: outSample, theoretical: outTheoretical }
+}
+
+/** Find index of closest value to x in sorted array (by value) */
+function closestIndexSorted(sortedValues: number[], x: number): number {
+  if (sortedValues.length === 0) return -1
+  let lo = 0
+  let hi = sortedValues.length - 1
+  while (lo < hi - 1) {
+    const mid = (lo + hi) >> 1
+    if (sortedValues[mid]! <= x) lo = mid
+    else hi = mid
+  }
+  return Math.abs(sortedValues[lo]! - x) <= Math.abs(sortedValues[hi]! - x) ? lo : hi
+}
 
 interface MultiRunAnalysisViewProps {
   analysis: any
@@ -74,11 +165,41 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
   const [frequencyHistogramView, setFrequencyHistogramView] = useState<'histogram' | 'kde'>('histogram')
   const [qqSelectedRun, setQqSelectedRun] = useState<number | null>(null)
   const [ecdfSelectedRun, setEcdfSelectedRun] = useState<number | null>(null)
+  const [ecdfPinned, setEcdfPinned] = useState<PinnedTooltip | null>(null)
+  const [qqPinned, setQqPinned] = useState<PinnedTooltip | null>(null)
   const qqLegendRef = useRef<HTMLDivElement>(null)
   const ecdfLegendRef = useRef<HTMLDivElement>(null)
+  const lastEcdfHoverRef = useRef<PinnedTooltip | null>(null)
+  const lastQqHoverRef = useRef<PinnedTooltip | null>(null)
+  const ecdfChartRef = useRef<HTMLDivElement>(null)
+  const qqChartRef = useRef<HTMLDivElement>(null)
 
-  const valueFrequencyHistogramData = computeValueFrequencyHistogram(allRuns)
-  const allNumbersKdeData = computeAllNumbersKde(allRuns)
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node
+      if (ecdfPinned && !ecdfChartRef.current?.contains(target) && !(target as Element).closest?.('[data-anchored-tooltip]')) setEcdfPinned(null)
+      if (qqPinned && !qqChartRef.current?.contains(target) && !(target as Element).closest?.('[data-anchored-tooltip]')) setQqPinned(null)
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [ecdfPinned, qqPinned])
+
+  // Prefer backend frequency_histogram (Phase 6); fallback to client-side for legacy
+  const valueFrequencyHistogramData =
+    analysis.frequency_histogram?.bins?.length > 0
+      ? analysis.frequency_histogram.bins.map((b: number, i: number) => ({
+          value: String(b),
+          count: analysis.frequency_histogram.frequencies[i] ?? 0
+        }))
+      : computeValueFrequencyHistogram(allRuns)
+  // Prefer backend combined_kde (Phase 6 Option A); fallback to client-side for legacy
+  const allNumbersKdeData =
+    analysis.combined_kde?.x?.length > 0
+      ? analysis.combined_kde.x.map((x: number, i: number) => ({
+          x,
+          density: analysis.combined_kde.y[i] ?? 0
+        }))
+      : computeAllNumbersKde(allRuns)
 
   useEffect(() => {
     const handle = (e: MouseEvent) => {
@@ -102,6 +223,15 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
 
   const handleQqLegendClick = (runNumber: number, e: React.MouseEvent) => { e.stopPropagation(); setQqSelectedRun(qqSelectedRun === runNumber ? null : runNumber) }
   const handleEcdfLegendClick = (runNumber: number, e: React.MouseEvent) => { e.stopPropagation(); setEcdfSelectedRun(ecdfSelectedRun === runNumber ? null : runNumber) }
+
+  const handleEcdfChartClick = () => {
+    if (ecdfPinned) setEcdfPinned(null)
+    else if (lastEcdfHoverRef.current?.payload?.length) setEcdfPinned(lastEcdfHoverRef.current)
+  }
+  const handleQqChartClick = () => {
+    if (qqPinned) setQqPinned(null)
+    else if (lastQqHoverRef.current?.payload?.length) setQqPinned(lastQqHoverRef.current)
+  }
 
   return (
     <div className="stats-section">
@@ -147,28 +277,30 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
             {analysis.individual_analyses?.length > 0 && (
               <div className="chart-container">
                 <h4>Per-Run Statistics Summary</h4>
-                <table className="stats-table" style={{ marginBottom: '30px' }}>
-                  <thead><tr><th>Run</th><th>Mean</th><th>Std Dev</th><th>Min</th><th>Max</th><th>Range</th><th>KS Test (p)</th></tr></thead>
-                  <tbody>
-                    {analysis.individual_analyses.map((runAnalysis: any, idx: number) => (
-                      <tr
-                        key={idx + 1}
-                        onClick={() => onSelectRun?.(idx + 1)}
-                        style={{ cursor: onSelectRun ? 'pointer' : undefined }}
-                        onMouseEnter={(e) => onSelectRun && (e.currentTarget.style.background = '#f0f0f0')}
-                        onMouseLeave={(e) => onSelectRun && (e.currentTarget.style.background = '')}
-                      >
-                        <td><strong>Run {idx + 1}</strong></td>
-                        <td>{runAnalysis.basic_stats?.mean?.toFixed(4) || 'N/A'}</td>
-                        <td>{runAnalysis.basic_stats?.std?.toFixed(4) || 'N/A'}</td>
-                        <td>{runAnalysis.basic_stats?.min?.toFixed(4) || 'N/A'}</td>
-                        <td>{runAnalysis.basic_stats?.max?.toFixed(4) || 'N/A'}</td>
-                        <td>{runAnalysis.basic_stats ? (runAnalysis.basic_stats.max - runAnalysis.basic_stats.min).toFixed(4) : 'N/A'}</td>
-                        <td>{runAnalysis.distribution?.is_uniform?.ks_p !== undefined ? `${runAnalysis.distribution.is_uniform.ks_p.toFixed(4)} ${runAnalysis.distribution.is_uniform.ks_p > 0.05 ? '✓' : '✗'}` : 'N/A'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div className="table-scroll-wrapper table-scroll-wrapper--5-rows" style={{ marginBottom: '30px' }}>
+                  <table className="stats-table">
+                    <thead><tr><th>Run</th><th>Mean</th><th>Std Dev</th><th>Min</th><th>Max</th><th>Range</th><th>KS Test (p)</th></tr></thead>
+                    <tbody>
+                      {analysis.individual_analyses.map((runAnalysis: any, idx: number) => (
+                        <tr
+                          key={idx + 1}
+                          onClick={() => onSelectRun?.(idx + 1)}
+                          style={{ cursor: onSelectRun ? 'pointer' : undefined }}
+                          onMouseEnter={(e) => onSelectRun && (e.currentTarget.style.background = '#f0f0f0')}
+                          onMouseLeave={(e) => onSelectRun && (e.currentTarget.style.background = '')}
+                        >
+                          <td><strong>Run {idx + 1}</strong></td>
+                          <td>{runAnalysis.basic_stats?.mean?.toFixed(4) || 'N/A'}</td>
+                          <td>{runAnalysis.basic_stats?.std?.toFixed(4) || 'N/A'}</td>
+                          <td>{runAnalysis.basic_stats?.min?.toFixed(4) || 'N/A'}</td>
+                          <td>{runAnalysis.basic_stats?.max?.toFixed(4) || 'N/A'}</td>
+                          <td>{runAnalysis.basic_stats ? (runAnalysis.basic_stats.max - runAnalysis.basic_stats.min).toFixed(4) : 'N/A'}</td>
+                          <td>{runAnalysis.distribution?.is_uniform?.ks_p !== undefined ? `${runAnalysis.distribution.is_uniform.ks_p.toFixed(4)} ${runAnalysis.distribution.is_uniform.ks_p > 0.05 ? '✓' : '✗'}` : 'N/A'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
                 {onSelectRun && <p style={{ fontSize: '12px', color: '#666', marginBottom: '20px', fontStyle: 'italic' }}>Click on a row to view detailed statistics for that run</p>}
               </div>
             )}
@@ -176,18 +308,20 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
           {analysis.autocorrelation_table && (
             <div className="chart-container">
               <h4>Autocorrelation Analysis by Run</h4>
-              <table className="stats-table">
-                <thead><tr><th>Run</th><th>Lags with Significant Correlation</th><th>Max |Correlation|</th></tr></thead>
-                <tbody>
-                  {analysis.autocorrelation_table.map((row: any) => (
-                    <tr key={row.run}>
-                      <td>{row.run}</td>
-                      <td>{Array.isArray(row.significant_lags) && row.significant_lags.length > 0 && row.significant_lags[0] !== 'None' ? row.significant_lags.join(', ') : 'None'}</td>
-                      <td>{row.max_correlation.toFixed(4)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="table-scroll-wrapper table-scroll-wrapper--5-rows">
+                <table className="stats-table">
+                  <thead><tr><th>Run</th><th>Lags with Significant Correlation</th><th>Max |Correlation|</th></tr></thead>
+                  <tbody>
+                    {analysis.autocorrelation_table.map((row: any) => (
+                      <tr key={row.run}>
+                        <td>{row.run}</td>
+                        <td>{Array.isArray(row.significant_lags) && row.significant_lags.length > 0 && row.significant_lags[0] !== 'None' ? row.significant_lags.join(', ') : 'None'}</td>
+                        <td>{row.max_correlation.toFixed(4)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </>
@@ -221,7 +355,7 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
               )}
               {frequencyHistogramView === 'kde' && allNumbersKdeData.length > 0 && (
                 <ResponsiveContainer width="100%" height={400}>
-                  <AreaChart data={allNumbersKdeData.map((d) => ({ x: d.x, density: d.density }))} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                  <AreaChart data={allNumbersKdeData.map((d: { x: number; density: number }) => ({ x: d.x, density: d.density }))} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="x" type="number" domain={['dataMin', 'dataMax']} tickFormatter={(v) => typeof v === 'number' ? v.toFixed(3) : String(v)} />
                     <YAxis label={{ value: 'Density', angle: -90, position: 'insideLeft' }} />
@@ -279,20 +413,23 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
                 })
                 return (
                   <>
-                    <ResponsiveContainer width="100%" height={400}>
-                      <LineChart data={unifiedData}>
+                    <div ref={ecdfChartRef} onClick={handleEcdfChartClick} style={{ cursor: 'pointer' }} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleEcdfChartClick() } }} aria-label="Click to pin or unpin tooltip">
+                      <ResponsiveContainer width="100%" height={400}>
+<LineChart data={unifiedData}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="x" tickFormatter={(value) => typeof value === 'number' ? value.toFixed(4) : value} />
                         <YAxis />
-                        <Tooltip />
-                        {(ecdfSelectedRun != null ? [...analysis.ecdf_all_runs].sort((a: any, b: any) => (a.run === ecdfSelectedRun ? 1 : 0) - (b.run === ecdfSelectedRun ? 1 : 0)) : analysis.ecdf_all_runs).map((runData: any, idx: number) => {
+                        <Tooltip content={(p: unknown) => <AnchoredScrollableTooltip {...(p as ComponentProps<typeof AnchoredScrollableTooltip>)} pinned={ecdfPinned} onHover={(payload, label) => { lastEcdfHoverRef.current = { payload, label } }} labelFormatter={(label) => `x: ${typeof label === 'number' ? label.toFixed(4) : label}`} />} />
+                          {ecdfPinned?.label != null && <ReferenceLine x={Number(ecdfPinned.label)} stroke="#666" strokeDasharray="4 4" strokeWidth={1.5} />}
+                          {(ecdfSelectedRun != null ? [...analysis.ecdf_all_runs].sort((a: any, b: any) => (a.run === ecdfSelectedRun ? 1 : 0) - (b.run === ecdfSelectedRun ? 1 : 0)) : analysis.ecdf_all_runs).map((runData: any, idx: number) => {
                           const origIdx = analysis.ecdf_all_runs.findIndex((r: any) => r.run === runData.run)
                           const color = QQ_COLORS[(origIdx >= 0 ? origIdx : idx) % QQ_COLORS.length]
                           const opacity = ecdfSelectedRun === null ? 0.6 : (ecdfSelectedRun === runData.run ? 1 : 0.08)
-                          return <Line key={runData.run} type="monotone" dataKey={`y${runData.run}`} stroke={color} strokeWidth={ecdfSelectedRun === runData.run ? 2.5 : 1.5} strokeOpacity={opacity} dot={false} name={`Run ${runData.run}`} connectNulls />
+                          return <Line key={runData.run} type="monotone" dataKey={`y${runData.run}`} stroke={color} strokeWidth={ecdfSelectedRun === runData.run ? 2.5 : 1.5} strokeOpacity={opacity} dot={false} name={`Run ${runData.run}`} connectNulls isAnimationActive={false} />
                         })}
-                      </LineChart>
-                    </ResponsiveContainer>
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
                     <div ref={ecdfLegendRef} style={{ marginTop: '15px', display: 'flex', flexWrap: 'wrap', gap: '15px', justifyContent: 'center' }}>
                       {analysis.ecdf_all_runs.map((runData: any, idx: number) => {
                         const color = QQ_COLORS[idx % QQ_COLORS.length]
@@ -311,49 +448,71 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
               })()}
 
               {overlaidView === 'qq' && (() => {
-                const allQqPoints: any[] = []
-                analysis.individual_analyses.forEach((runAnalysis: any, runIdx: number) => {
-                  if (runAnalysis.distribution?.qq_plot?.sample && runAnalysis.distribution?.qq_plot?.theoretical) {
-                    runAnalysis.distribution.qq_plot.sample.forEach((sample: number, idx: number) => {
-                      allQqPoints.push({ theoretical: runAnalysis.distribution.qq_plot.theoretical[idx], sample, run: runIdx + 1 })
+                // Per-run: downsampled (theoretical, sample) sorted by theoretical for fast lookup
+                const runPoints = new Map<number, { theoretical: number[]; sample: number[] }>()
+                analysis.individual_analyses?.forEach((runAnalysis: any, runIdx: number) => {
+                  const sample = runAnalysis.distribution?.qq_plot?.sample
+                  const theoretical = runAnalysis.distribution?.qq_plot?.theoretical
+                  if (sample?.length && theoretical?.length) {
+                    const { sample: s, theoretical: t } = downsampleQqForDisplay(sample, theoretical, MAX_QQ_DISPLAY_POINTS)
+                    const byTheoretical = t.map((th, i) => ({ th, sm: s[i]! })).sort((a, b) => a.th - b.th)
+                    runPoints.set(runIdx + 1, {
+                      theoretical: byTheoretical.map((x) => x.th),
+                      sample: byTheoretical.map((x) => x.sm)
                     })
                   }
                 })
-                const runsMap = new Map<number, any[]>()
-                allQqPoints.forEach(point => { const run = point.run; if (!runsMap.has(run)) runsMap.set(run, []); runsMap.get(run)!.push({ theoretical: point.theoretical, sample: point.sample }) })
-                const allTheoretical = Array.from(new Set(allQqPoints.map(p => p.theoretical))).sort((a, b) => a - b)
-                const unifiedData = allTheoretical.map(theoretical => {
-                  const point: any = { theoretical }
-                  runsMap.forEach((points, run) => {
-                    let sampleValue: number | null = null
-                    for (const p of points) { if (Math.abs(p.theoretical - theoretical) < 0.0001) { sampleValue = p.sample; break } }
-                    if (sampleValue === null && points.length > 0) {
-                      let closestIdx = 0, minDist = Math.abs(points[0].theoretical - theoretical)
-                      for (let i = 1; i < points.length; i++) { const dist = Math.abs(points[i].theoretical - theoretical); if (dist < minDist) { minDist = dist; closestIdx = i } }
-                      sampleValue = points[closestIdx].sample
-                    }
-                    point[`sample${run}`] = sampleValue
+                const runKeys = Array.from(runPoints.keys()).sort((a, b) => a - b)
+                if (runKeys.length === 0) return null
+                // Use first run's theoretical as grid (capped)
+                const first = runPoints.get(runKeys[0]!)!
+                let gridTheoretical = [...first.theoretical]
+                if (gridTheoretical.length > MAX_QQ_DISPLAY_POINTS) {
+                  const step = (gridTheoretical.length - 1) / (MAX_QQ_DISPLAY_POINTS - 1)
+                  gridTheoretical = Array.from({ length: MAX_QQ_DISPLAY_POINTS }, (_, i) =>
+                    gridTheoretical[i === MAX_QQ_DISPLAY_POINTS - 1 ? gridTheoretical.length - 1 : Math.round(i * step)]!
+                  )
+                }
+                // Build unified data with binary-search lookup (avoids O(n²) scan)
+                const unifiedData = gridTheoretical.map((theoretical) => {
+                  const point: Record<string, number> = { theoretical }
+                  runKeys.forEach((run) => {
+                    const { theoretical: tArr, sample: sArr } = runPoints.get(run)! 
+                    const idx = closestIndexSorted(tArr, theoretical)
+                    point[`sample${run}`] = idx >= 0 ? sArr[idx]! : theoretical
                   })
                   return point
                 })
-                const runKeys = Array.from(runsMap.keys()).sort((a, b) => a - b)
                 return (
                   <>
-                    <ResponsiveContainer width="100%" height={400}>
-                      <ScatterChart data={unifiedData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="theoretical" name="Theoretical" tickFormatter={(value) => typeof value === 'number' ? value.toFixed(4) : value} />
-                        <YAxis name="Sample" />
-                        <Tooltip cursor={{ strokeDasharray: '3 3' }} />
-                        {(qqSelectedRun != null ? [...runKeys].sort((a, b) => (a === qqSelectedRun ? 1 : 0) - (b === qqSelectedRun ? 1 : 0) || a - b) : runKeys).map((run: number) => {
+                    <div ref={qqChartRef} onClick={handleQqChartClick} style={{ cursor: 'pointer' }} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleQqChartClick() } }} aria-label="Click to pin or unpin tooltip">
+                      <ResponsiveContainer width="100%" height={400}>
+<LineChart data={unifiedData} margin={{ top: 10, right: 20, left: 10, bottom: 20 }}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="theoretical" name="Theoretical" type="number" tickFormatter={(v) => typeof v === 'number' ? v.toFixed(4) : String(v)} />
+                          <YAxis name="Sample" type="number" tickFormatter={(v) => typeof v === 'number' ? v.toFixed(4) : String(v)} />
+                          <Tooltip
+                            content={(p: unknown) => (
+                              <AnchoredScrollableTooltip
+                                {...(p as ComponentProps<typeof AnchoredScrollableTooltip>)}
+                                pinned={qqPinned}
+                                onHover={(payload, label) => { lastQqHoverRef.current = { payload, label } }}
+                                labelFormatter={(label) => `Theoretical: ${Number(label).toFixed(4)}`}
+                                formatter={(value) => [value?.toFixed(6) ?? '', '']}
+                              />
+                            )}
+                          />
+                          {qqPinned?.label != null && <ReferenceLine x={Number(qqPinned.label)} stroke="#666" strokeDasharray="4 4" strokeWidth={1.5} />}
+                          {(qqSelectedRun != null ? [...runKeys].sort((a, b) => (a === qqSelectedRun ? 1 : 0) - (b === qqSelectedRun ? 1 : 0) || a - b) : runKeys).map((run: number) => {
                           const origIdx = runKeys.indexOf(run)
                           const color = QQ_COLORS[origIdx % QQ_COLORS.length]
                           const opacity = qqSelectedRun === null ? 0.6 : (qqSelectedRun === run ? 1 : 0.08)
-                          return <Scatter key={run} dataKey={`sample${run}`} fill={color} fillOpacity={opacity} stroke={color} strokeWidth={qqSelectedRun === run ? 2 : 1} name={`Run ${run}`} />
+                          return <Line key={run} type="monotone" dataKey={`sample${run}`} stroke={color} strokeWidth={qqSelectedRun === run ? 2.5 : 1.5} strokeOpacity={opacity} dot={{ r: 2 }} connectNulls name={`Run ${run}`} isAnimationActive={false} />
                         })}
-                        <Line type="linear" dataKey="theoretical" stroke="#000" strokeWidth={2} strokeDasharray="5 5" dot={false} name="y=x" />
-                      </ScatterChart>
-                    </ResponsiveContainer>
+                        <Line type="monotone" dataKey="theoretical" stroke="#000" strokeWidth={2} strokeDasharray="5 5" dot={false} name="y=x" isAnimationActive={false} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
                     <div ref={qqLegendRef} style={{ marginTop: '15px', display: 'flex', flexWrap: 'wrap', gap: '15px', justifyContent: 'center' }}>
                       {runKeys.map((run: number, idx: number) => {
                         const color = QQ_COLORS[idx % QQ_COLORS.length]

@@ -3,7 +3,7 @@ Analysis service for statistical analysis
 """
 import json
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any
 from fastapi import HTTPException, Request
 
 from models import NumberData, MultiRunData
@@ -14,16 +14,15 @@ logger = logging.getLogger(__name__)
 
 async def analyze_numbers_service(
     request: Request,
-    stats_analyzer: StatsAnalyzer,
-    current_runs_data: List
+    stats_analyzer: StatsAnalyzer
 ) -> Dict[str, Any]:
     """
-    Perform comprehensive statistical analysis on generated numbers
+    Perform comprehensive statistical analysis on generated numbers.
+    Does not store runs; client sends analysis for PDF download.
     
     Args:
         request: FastAPI request object
         stats_analyzer: StatsAnalyzer instance
-        current_runs_data: List to store current runs data (for PDF generation on demand)
         
     Returns:
         Analysis results dictionary
@@ -50,10 +49,6 @@ async def analyze_numbers_service(
                 analysis = stats_analyzer.analyze_multi_run(data.runs, data.provider, data.num_runs)
                 logger.info("Multi-run analysis completed successfully")
                 
-                # Store runs data for potential PDF generation (only when button is pressed)
-                current_runs_data.clear()
-                current_runs_data.extend(data.runs)
-                
                 return analysis
             except ValueError as e:
                 logger.error(f"Validation error in multi-run analysis: {str(e)}", exc_info=True)
@@ -75,11 +70,6 @@ async def analyze_numbers_service(
                 logger.info(f"Validated single-run data: {len(data.numbers)} numbers, provider={data.provider}")
                 analysis = stats_analyzer.analyze(data.numbers, data.provider)
                 logger.info("Single-run analysis completed successfully")
-                
-                # Store runs data for potential PDF generation (only when button is pressed)
-                # Convert single run to multi-run format for PDF generation
-                current_runs_data.clear()
-                current_runs_data.append(data.numbers)
                 
                 return analysis
             except ValueError as e:
