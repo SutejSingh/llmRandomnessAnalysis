@@ -171,11 +171,11 @@ class LLMClient:
     
     def _default_user_prompt_one(self) -> str:
         """Minimal trigger when user prompt is empty; only system prompt carries instruction."""
-        return "."
+        return ""
 
     def _default_user_prompt_batch(self) -> str:
         """Minimal trigger when user prompt is empty; only system prompt carries instruction."""
-        return "."
+        return ""
     
     async def _generate_openai(self, system_prompt: str, count: int, api_key: Optional[str] = None, user_prompt: Optional[str] = None) -> List[float]:
         """Generate numbers using OpenAI"""
