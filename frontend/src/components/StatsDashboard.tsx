@@ -53,28 +53,43 @@ const StatsDashboard = ({ analysis, allRuns = [] }: StatsDashboardProps) => {
 
   const getRunsToDownload = (): number[][] => {
     if (allRuns.length > 0) return allRuns
-    if (analysis?.individual_analyses?.length > 0) {
-      return analysis.individual_analyses.map((a: any) => a.raw_data || [])
-    }
-    if (analysis?.raw_data) return [analysis.raw_data]
     return []
   }
 
-  const handleDownloadCSV = () => {
+  const handleDownloadCSV = async () => {
     const runsToDownload = getRunsToDownload()
     if (runsToDownload.length === 0) {
       alert('No data available to download')
       return
     }
-    const runsJson = encodeURIComponent(JSON.stringify(runsToDownload))
     const provider = analysis.provider || 'manual'
-    window.open(`${API_BASE}/download/csv?runs=${runsJson}&provider=${provider}`, '_blank')
+    try {
+      const response = await fetch(`${API_BASE}/download/csv`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ runs: runsToDownload, provider })
+      })
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const filename = response.headers.get('Content-Disposition')?.match(/filename="?([^";]+)"?/)?.[1]
+        ?? `random_numbers_${provider}_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      console.error('Error downloading CSV:', error)
+      alert('Error downloading CSV file. Please try again.')
+    }
   }
 
   const handleDownloadPDF = async () => {
-    const runsToDownload = getRunsToDownload()
-    if (runsToDownload.length === 0) {
-      alert('No data available to download')
+    if (!analysis) {
+      alert('No analysis available to download')
       return
     }
     setIsDownloadingPDF(true)
@@ -82,7 +97,7 @@ const StatsDashboard = ({ analysis, allRuns = [] }: StatsDashboardProps) => {
       const response = await fetch(`${API_BASE}/download/pdf`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ analysis, runs: runsToDownload })
+        body: JSON.stringify({ analysis })
       })
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
       const blob = await response.blob()

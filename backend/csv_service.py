@@ -13,6 +13,9 @@ from fastapi.responses import Response
 
 logger = logging.getLogger(__name__)
 
+# Chunk size for streaming CSV parse (Option A: pd.read_csv with chunks)
+CSV_CHUNK_SIZE = 10000
+
 
 def generate_csv(runs_data: List[List[float]], provider: str) -> Response:
     """
@@ -62,101 +65,85 @@ def generate_csv(runs_data: List[List[float]], provider: str) -> Response:
 
 async def parse_uploaded_csv(file: UploadFile) -> Tuple[List[List[float]], int]:
     """
-    Parse uploaded CSV file and validate format
+    Parse uploaded CSV file using streaming (Option A: read in chunks, pd.read_csv with chunksize).
+    Reads file in chunks from FastAPI UploadFile, then parses with pandas in chunked mode
+    to avoid loading full DataFrame into memory at once.
     
     Expected format: CSV with columns "run 1", "run 2", "run 3", etc.
     Each column contains numeric values (floats)
     
     Args:
-        file: Uploaded CSV file
+        file: Uploaded CSV file (streaming)
         
     Returns:
-        Tuple of (runs_data, num_runs) where:
-        - runs_data: List of runs (list of numbers)
-        - num_runs: Number of runs detected
-        
-    Raises:
-        HTTPException: If CSV format is invalid
+        Tuple of (runs_data, num_runs)
     """
     try:
-        # Read file content
-        contents = await file.read()
-        file_content = contents.decode('utf-8')
+        # Stream read: accumulate chunks from FastAPI upload
+        chunks = []
+        while True:
+            chunk = await file.read(1024 * 1024)  # 1 MB per read
+            if not chunk:
+                break
+            chunks.append(chunk)
+        file_content = b"".join(chunks).decode("utf-8")
         
-        # Parse CSV
-        df = pd.read_csv(StringIO(file_content))
-        
-        # Validate that columns follow the expected format (run 1, run 2, etc.)
-        runs_data = []
-        
-        # Check for columns matching "run 1", "run 2", etc. (case-insensitive, with optional spaces)
-        column_names = [col.strip() for col in df.columns]
-        
-        # Find all columns that match the pattern "run N" or "runN"
-        run_pattern = re.compile(r'^run\s*(\d+)$', re.IGNORECASE)
-        
+        # Get column names from file (header only)
+        header_df = pd.read_csv(StringIO(file_content), nrows=0)
+        column_names = [col.strip() for col in header_df.columns]
+        run_pattern = re.compile(r"^run\s*(\d+)$", re.IGNORECASE)
         run_columns = []
         for col in column_names:
             match = run_pattern.match(col)
             if match:
-                run_num = int(match.group(1))
-                run_columns.append((run_num, col))
-        
+                run_columns.append((int(match.group(1)), col))
         if not run_columns:
             raise HTTPException(
                 status_code=400,
                 detail="CSV must have columns named 'run 1', 'run 2', 'run 3', etc. (case-insensitive)"
             )
-        
-        # Sort by run number
         run_columns.sort(key=lambda x: x[0])
         
-        # Extract data for each run
-        for run_num, col_name in run_columns:
-            # Find the actual column name in the dataframe (preserving original case/spacing)
-            actual_col = None
-            for df_col in df.columns:
-                if df_col.strip().lower() == col_name.lower():
-                    actual_col = df_col
+        # Map (run_idx, actual_column_name) for each run column
+        actual_col_names = list(header_df.columns)
+        run_col_indices: List[Tuple[int, str]] = []
+        for i, (_, col_name) in enumerate(run_columns):
+            for ac in actual_col_names:
+                if ac.strip().lower() == col_name.lower():
+                    run_col_indices.append((i, ac))
                     break
-            
-            if actual_col is None:
-                continue
-            
-            # Extract numbers from this column, filtering out empty/NaN values
-            run_values = []
-            for value in df[actual_col]:
-                if pd.isna(value) or value == '':
-                    continue
-                try:
-                    num = float(value)
-                    run_values.append(num)
-                except (ValueError, TypeError):
-                    # Skip non-numeric values
-                    logger.warning(f"Skipping non-numeric value '{value}' in {col_name}")
-                    continue
-            
-            if len(run_values) == 0:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Column '{col_name}' contains no valid numeric values"
-                )
-            
-            runs_data.append(run_values)
         
-        if len(runs_data) == 0:
+        # Parse CSV in chunks to avoid full DataFrame in memory
+        runs_data: List[List[float]] = [[] for _ in run_columns]
+        chunk_iter = pd.read_csv(StringIO(file_content), chunksize=CSV_CHUNK_SIZE)
+        for df_chunk in chunk_iter:
+            for run_idx, actual_col in run_col_indices:
+                if actual_col not in df_chunk.columns:
+                    continue
+                for value in df_chunk[actual_col]:
+                    if pd.isna(value) or value == "":
+                        continue
+                    try:
+                        runs_data[run_idx].append(float(value))
+                    except (ValueError, TypeError):
+                        logger.warning("Skipping non-numeric value in %s", actual_col)
+                        continue
+        
+        # Validate we got data
+        if all(len(r) == 0 for r in runs_data):
             raise HTTPException(
                 status_code=400,
                 detail="No valid run data found in CSV. Ensure columns are named 'run 1', 'run 2', etc."
             )
-        
         num_runs = len(runs_data)
-        logger.info(f"Successfully parsed CSV: {num_runs} runs, lengths: {[len(run) for run in runs_data]}")
-        
+        logger.info(
+            "Successfully parsed CSV (streaming): %s runs, lengths: %s",
+            num_runs,
+            [len(run) for run in runs_data],
+        )
         return runs_data, num_runs
         
     except HTTPException:
-        # Re-raise HTTP exceptions as-is
         raise
     except pd.errors.EmptyDataError:
         raise HTTPException(status_code=400, detail="CSV file is empty")
@@ -165,5 +152,5 @@ async def parse_uploaded_csv(file: UploadFile) -> Tuple[List[List[float]], int]:
     except UnicodeDecodeError:
         raise HTTPException(status_code=400, detail="File must be UTF-8 encoded")
     except Exception as e:
-        logger.error(f"Error parsing CSV: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error parsing CSV: {str(e)}")
+        logger.error("Error parsing CSV: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error processing CSV: {str(e)}")

@@ -469,6 +469,56 @@
   border-bottom: none;
 }
 
+/* Scrollable tables with fixed header (many runs) */
+.table-scroll-wrapper {
+  max-height: 320px;
+  overflow: auto;
+  margin-top: 15px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+}
+
+.table-scroll-wrapper .stats-table {
+  margin-top: 0;
+  /* separate + border-spacing required for position:sticky on th to work in scroll container */
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  /* avoid new containing block so sticky is relative to .table-scroll-wrapper */
+  overflow: visible;
+}
+
+/* Sticky only on th (thead/tr don't support position in table layout) */
+.table-scroll-wrapper .stats-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #000;
+  color: white;
+  box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.5);
+}
+
+.table-scroll-wrapper .stats-table thead tr {
+  background: #000;
+}
+
+/* Limit to 5 visible body rows; header stays pinned */
+.table-scroll-wrapper--5-rows {
+  max-height: 260px;
+}
+
+/* Anchored chart tooltip (overlaid ECDF/QQ) - fixed position so user can scroll it */
+.anchored-chart-tooltip {
+  scrollbar-width: thin;
+}
+.anchored-chart-tooltip::-webkit-scrollbar {
+  width: 8px;
+}
+.anchored-chart-tooltip::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
 .stats-tables-container {
   display: grid;
   grid-template-columns: 1fr 1fr;

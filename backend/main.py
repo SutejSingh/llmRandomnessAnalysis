@@ -2,13 +2,12 @@
 FastAPI application - Route handlers only
 All business logic is in service modules
 """
-from fastapi import Request, Query, UploadFile, File, HTTPException
-import json
+from fastapi import Request, UploadFile, File, HTTPException
 import logging
 
 # Import configuration and services
-from config import app, llm_client, stats_analyzer, latex_generator, current_runs_data, DUMMY_DATA_FILENAME
-from models import PromptRequest, PDFDownloadRequest
+from config import app, llm_client, stats_analyzer, latex_generator, DUMMY_DATA_FILENAME
+from models import PromptRequest, PDFDownloadRequest, CSVDownloadRequest
 
 # Import service functions
 from generation_service import generate_numbers_service, generate_numbers_stream_service
@@ -40,23 +39,19 @@ async def generate_numbers_stream(request: PromptRequest):
 @app.post("/analyze")
 async def analyze_numbers(request: Request):
     """Perform comprehensive statistical analysis on generated numbers"""
-    return await analyze_numbers_service(request, stats_analyzer, current_runs_data)
+    return await analyze_numbers_service(request, stats_analyzer)
 
 
-@app.get("/download/csv")
-async def download_csv(
-    runs: str = Query(..., description="JSON string of runs array"),
-    provider: str = Query("manual", description="Provider name")
-):
-    """Download raw numbers as CSV file with columns run 1, run 2, etc."""
-    runs_data = json.loads(runs)
-    return generate_csv(runs_data, provider)
+@app.post("/download/csv")
+async def download_csv(request: CSVDownloadRequest):
+    """Download raw numbers as CSV file with columns run 1, run 2, etc. Uses POST so large payloads are not truncated in URL."""
+    return generate_csv(request.runs, request.provider)
 
 
 @app.post("/download/pdf")
 async def download_pdf(request: PDFDownloadRequest):
     """Download full analysis report as PDF file with metrics, charts, and everything using LaTeX"""
-    return await download_pdf_service(request.analysis, request.runs, latex_generator)
+    return await download_pdf_service(request.analysis, latex_generator)
 
 
 @app.get("/dummy-data")
@@ -110,12 +105,8 @@ async def upload_csv(file: UploadFile = File(...)):
         if not file.filename.endswith('.csv'):
             raise HTTPException(status_code=400, detail="File must be a CSV file (.csv extension)")
         
-        # Parse CSV
+        # Parse CSV (streaming)
         runs_data, num_runs = await parse_uploaded_csv(file)
-        
-        # Store runs data for potential PDF generation
-        current_runs_data.clear()
-        current_runs_data.extend(runs_data)
         
         # Perform analysis on uploaded data
         provider = "uploaded"
