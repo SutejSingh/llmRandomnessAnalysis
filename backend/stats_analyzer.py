@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import stats
 from scipy.fft import fft
-from scipy.stats import normaltest, kstest, chi2
+from scipy.stats import kstest, chi2
 import pandas as pd
 from typing import Dict, Any, List, Tuple
 import struct
@@ -56,7 +56,203 @@ class StatsAnalyzer:
         if indices[-1] != n - 1:
             indices = np.append(indices, n - 1)
         return arr[indices].tolist()
-    
+
+    # -------------------------------------------------------------------------
+    # Distribution deviation metrics (ECDF and Q-Q) for multi-run analysis.
+    # All assume data is normalized to [0, 1] per run (min/max of that run).
+    # -------------------------------------------------------------------------
+
+    @staticmethod
+    def _normalize_to_unit(arr: np.ndarray) -> np.ndarray:
+        """Normalize array to [0, 1] using min/max of the run. Returns same length; constant arrays become 0.5."""
+        if len(arr) == 0:
+            return arr
+        lo, hi = arr.min(), arr.max()
+        if hi <= lo:
+            return np.full_like(arr, 0.5, dtype=float)
+        return (arr - lo) / (hi - lo)
+
+    @staticmethod
+    def _ecdf_ks_statistic_normalized(u: np.ndarray) -> float:
+        """
+        Max vertical deviation (K-S statistic) for uniform [0,1].
+        D_n = max(|F_empirical(x) - F_theoretical(x)|). Theoretical F(x)=x.
+        u must be sorted or we sort it; assumed normalized to [0,1].
+        """
+        if len(u) == 0:
+            return float('nan')
+        u = np.asarray(u, dtype=float)
+        if u.ndim > 1:
+            u = u.ravel()
+        u = np.sort(u)
+        n = len(u)
+        # Empirical CDF at each point (right-continuous: F(x_i) = i/n)
+        empirical = np.arange(1, n + 1, dtype=float) / n
+        theoretical = u
+        dev = np.abs(empirical - theoretical)
+        # K-S also checks at jump points: just before each jump, F_emp drops
+        dev_left = np.abs(np.arange(0, n, dtype=float) / n - theoretical)
+        return float(np.max(np.maximum(dev, dev_left)))
+
+    @staticmethod
+    def _ecdf_mad_normalized(u: np.ndarray) -> float:
+        """
+        Mean absolute deviation: mean(|F_empirical(x) - F_theoretical(x)|).
+        u assumed normalized to [0,1], will be sorted.
+        """
+        if len(u) == 0:
+            return float('nan')
+        u = np.asarray(u, dtype=float).ravel()
+        u = np.sort(u)
+        n = len(u)
+        empirical = np.arange(1, n + 1, dtype=float) / n
+        theoretical = u
+        return float(np.mean(np.abs(empirical - theoretical)))
+
+    @staticmethod
+    def _ecdf_regional_deviation(u: np.ndarray, regions: int = 5) -> List[float]:
+        """
+        Break [0,1] into equal regions and compute mean absolute deviation in each.
+        Returns list of length `regions`. Vectorized.
+        """
+        if len(u) == 0 or regions <= 0:
+            return [0.0] * regions
+        u = np.asarray(u, dtype=float).ravel()
+        u = np.sort(u)
+        n = len(u)
+        empirical = np.arange(1, n + 1, dtype=float) / n
+        theoretical = u
+        abs_dev = np.abs(empirical - theoretical)
+        boundaries = np.linspace(0, 1, regions + 1)
+        out = []
+        for i in range(regions):
+            low, high = boundaries[i], boundaries[i + 1]
+            # points in [low, high]; last region includes right endpoint so u=1.0 is counted
+            is_last = i == regions - 1
+            mask = (u >= low) & (u <= high) if is_last else (u >= low) & (u < high)
+            if np.any(mask):
+                out.append(float(np.mean(abs_dev[mask])))
+            else:
+                out.append(0.0)
+        return out
+
+    @staticmethod
+    def _qq_r_squared_normalized(u: np.ndarray) -> float:
+        """
+        R² for Q-Q plot vs uniform: R² = 1 - (SS_res / SS_tot).
+        Sample quantiles = sorted u, theoretical = (i - 0.5) / n (Blom).
+        Measures how well points follow the diagonal y=x.
+        """
+        if len(u) < 2:
+            return float('nan')
+        u = np.asarray(u, dtype=float).ravel()
+        u = np.sort(u)
+        n = len(u)
+        theoretical = (np.arange(1, n + 1, dtype=float) - 0.5) / n
+        sample = u
+        ss_res = np.sum((sample - theoretical) ** 2)
+        ss_tot = np.sum((sample - np.mean(sample)) ** 2)
+        if ss_tot <= 0:
+            return float('nan')
+        return float(1.0 - (ss_res / ss_tot))
+
+    @staticmethod
+    def _qq_mse_normalized(u: np.ndarray) -> float:
+        """
+        Mean squared error from diagonal (y=x) in Q-Q plot.
+        Theoretical quantiles (Blom): (i - 0.5) / n; sample = sorted u.
+        """
+        if len(u) == 0:
+            return float('nan')
+        u = np.asarray(u, dtype=float).ravel()
+        u = np.sort(u)
+        n = len(u)
+        theoretical = (np.arange(1, n + 1, dtype=float) - 0.5) / n
+        return float(np.mean((u - theoretical) ** 2))
+
+    def _compute_distribution_deviation_metrics(self, runs: List[List[float]]) -> Dict[str, Any]:
+        """
+        Compute ECDF and Q-Q deviation metrics across runs.
+        Each run is normalized to [0,1] using its own min/max before computing metrics.
+        Returns aggregates: mean, std_dev, cv where applicable; regional pattern; per-run lists omitted for payload size.
+        """
+        if not runs:
+            return self._empty_deviation_metrics()
+        n_runs = len(runs)
+        ks_list = []
+        mad_list = []
+        regional_list = []
+        r2_list = []
+        mse_list = []
+        for run in runs:
+            arr = np.array(run, dtype=float)
+            if len(arr) == 0 or np.any(np.isnan(arr)) or np.any(np.isinf(arr)):
+                continue
+            u = self._normalize_to_unit(arr)
+            if len(u) < 2:
+                continue
+            ks_list.append(self._ecdf_ks_statistic_normalized(u))
+            mad_list.append(self._ecdf_mad_normalized(u))
+            regional_list.append(self._ecdf_regional_deviation(u, regions=5))
+            r2_list.append(self._qq_r_squared_normalized(u))
+            mse_list.append(self._qq_mse_normalized(u))
+        if not ks_list:
+            return self._empty_deviation_metrics()
+        ks_arr = np.array(ks_list)
+        mad_arr = np.array(mad_list)
+        r2_arr = np.array(r2_list)
+        mse_arr = np.array(mse_list)
+        regional_arr = np.array(regional_list)  # shape (n_runs, 5)
+        mean_regional = np.mean(regional_arr, axis=0)
+        def safe_cv(x: np.ndarray) -> float:
+            m = float(np.mean(x))
+            if m == 0 or np.isnan(m):
+                return 0.0
+            s = float(np.std(x))
+            return s / m
+        return {
+            "ecdf": {
+                "ks_statistic": {
+                    "mean": float(np.mean(ks_arr)),
+                    "std_dev": float(np.std(ks_arr)) if len(ks_arr) > 1 else 0.0,
+                    "cv": safe_cv(ks_arr),
+                },
+                "mad": {
+                    "mean": float(np.mean(mad_arr)),
+                    "std_dev": float(np.std(mad_arr)) if len(mad_arr) > 1 else 0.0,
+                    "cv": safe_cv(mad_arr),
+                },
+                "regional_deviation": {
+                    "labels": ["0.0–0.2", "0.2–0.4", "0.4–0.6", "0.6–0.8", "0.8–1.0"],
+                    "mean": [float(x) for x in mean_regional.tolist()],
+                },
+            },
+            "qq": {
+                "r_squared": {
+                    "mean": float(np.mean(r2_arr)),
+                    "std_dev": float(np.std(r2_arr)) if len(r2_arr) > 1 else 0.0,
+                },
+                "mse_from_diagonal": {
+                    "mean": float(np.mean(mse_arr)),
+                    "std_dev": float(np.std(mse_arr)) if len(mse_arr) > 1 else 0.0,
+                },
+            },
+        }
+
+    def _empty_deviation_metrics(self) -> Dict[str, Any]:
+        empty_agg = {"mean": 0.0, "std_dev": 0.0, "cv": 0.0}
+        return {
+            "ecdf": {
+                "ks_statistic": empty_agg.copy(),
+                "mad": {**empty_agg},
+                "regional_deviation": {"labels": ["0.0–0.2", "0.2–0.4", "0.4–0.6", "0.6–0.8", "0.8–1.0"], "mean": [0.0] * 5},
+            },
+            "qq": {
+                "r_squared": {"mean": 0.0, "std_dev": 0.0},
+                "mse_from_diagonal": {"mean": 0.0, "std_dev": 0.0},
+            },
+        }
+
     def analyze(self, numbers: List[float], provider: str) -> Dict[str, Any]:
         """Perform comprehensive statistical analysis. Does not include raw_data in response."""
         arr = np.array(numbers)
@@ -76,12 +272,12 @@ class StatsAnalyzer:
         return analysis
     
     def _basic_stats(self, arr: np.ndarray) -> Dict[str, float]:
-        """Calculate basic descriptive statistics"""
+        """Calculate basic descriptive statistics (sample variance/std with ddof=1)."""
         return {
             "mean": float(np.mean(arr)),
             "median": float(np.median(arr)),
-            "std": float(np.std(arr)),
-            "variance": float(np.var(arr)),
+            "std": float(np.std(arr, ddof=1)) if len(arr) > 1 else 0.0,
+            "variance": float(np.var(arr, ddof=1)) if len(arr) > 1 else 0.0,
             "min": float(np.min(arr)),
             "max": float(np.max(arr)),
             "q25": float(np.percentile(arr, 25)),
@@ -224,12 +420,8 @@ class StatsAnalyzer:
         rolling_mean = df.rolling(window=window_size, center=True).mean()
         rolling_std = df.rolling(window=window_size, center=True).std()
         
-        # Chunked analysis (divide into 4 chunks)
-        chunk_size = len(arr) // 4
-        chunks = [
-            arr[i*chunk_size:(i+1)*chunk_size] 
-            for i in range(4)
-        ]
+        # Chunked analysis: divide into 4 chunks covering the full array (no dropped tail)
+        chunks = np.array_split(arr, 4)
         
         chunk_stats = []
         for i, chunk in enumerate(chunks):
@@ -237,17 +429,19 @@ class StatsAnalyzer:
                 chunk_stats.append({
                     "chunk": i + 1,
                     "mean": float(np.mean(chunk)),
-                    "std": float(np.std(chunk)),
+                    "std": float(np.std(chunk, ddof=1)) if len(chunk) > 1 else 0.0,
                     "min": float(np.min(chunk)),
                     "max": float(np.max(chunk))
                 })
         
-        # Downsample rolling series for visualization
+        # Downsample rolling series for visualization; drop NaN edges instead of filling with 0
         rolling_idx = np.arange(len(rolling_mean))
-        rolling_mean_vals = rolling_mean.fillna(0).values
-        rolling_std_vals = rolling_std.fillna(0).values
-        rm_idx_list, rm_val_list = self._downsample(rolling_idx.astype(float), rolling_mean_vals, MAX_CHART_POINTS)
-        _, rs_val_list = self._downsample(rolling_idx.astype(float), rolling_std_vals, MAX_CHART_POINTS)
+        valid = ~(np.isnan(rolling_mean.values) | np.isnan(rolling_std.values))
+        idx_valid = rolling_idx[valid].astype(float)
+        rm_valid_vals = rolling_mean.values[valid]
+        rs_valid_vals = rolling_std.values[valid]
+        rm_idx_list, rm_val_list = self._downsample(idx_valid, rm_valid_vals, MAX_CHART_POINTS)
+        _, rs_val_list = self._downsample(idx_valid, rs_valid_vals, MAX_CHART_POINTS)
         
         return {
             "rolling_mean": {
@@ -358,7 +552,10 @@ class StatsAnalyzer:
         }
     
     def _binary_matrix_rank_test(self, binary_sequence: List[int], matrix_size: int = 32) -> Dict[str, Any]:
-        """NIST Binary Matrix Rank Test - tests for linear dependence among fixed-length substrings"""
+        """NIST Binary Matrix Rank Test - tests for linear dependence among fixed-length substrings.
+        Expected probabilities are only defined for 32x32 in this implementation."""
+        if matrix_size != 32:
+            return {"p_value": None, "statistic": None, "passed": False, "error": "Only matrix_size=32 is supported (NIST expected probabilities are for 32x32)"}
         n = len(binary_sequence)
         min_required = matrix_size * matrix_size
         if n < min_required:
@@ -425,7 +622,10 @@ class StatsAnalyzer:
         }
     
     def _longest_run_of_ones_test(self, binary_sequence: List[int], block_size: int = 128) -> Dict[str, Any]:
-        """NIST Longest Run of Ones Test - examines the longest consecutive sequence of 1s within blocks"""
+        """NIST Longest Run of Ones Test - examines the longest consecutive sequence of 1s within blocks.
+        Expected frequencies are only defined for block_size=128 in this implementation."""
+        if block_size != 128:
+            return {"p_value": None, "statistic": None, "passed": False, "error": "Only block_size=128 is supported (NIST expected frequencies are for M=128)"}
         n = len(binary_sequence)
         if n < block_size:
             return {"p_value": None, "statistic": None, "passed": False, "error": f"Sequence too short (need at least {block_size} bits)"}
@@ -434,15 +634,9 @@ class StatsAnalyzer:
         if num_blocks < 1:
             return {"p_value": None, "statistic": None, "passed": False, "error": "Cannot form any blocks"}
         
-        # Expected frequencies for different run lengths (for block_size=128)
-        # These are approximate values based on NIST SP 800-22
-        if block_size == 128:
-            run_lengths = [4, 5, 6, 7, 8, 9]  # Run lengths <= 4, 5, 6, 7, 8, >=9
-            expected_freqs = [0.1174, 0.2430, 0.2493, 0.1752, 0.1027, 0.1124]
-        else:
-            # For other block sizes, use simplified version
-            run_lengths = [4, 5, 6, 7, 8, 9]
-            expected_freqs = [0.1174, 0.2430, 0.2493, 0.1752, 0.1027, 0.1124]
+        # Expected frequencies for run lengths (NIST SP 800-22, block_size=128)
+        run_lengths = [4, 5, 6, 7, 8, 9]  # Run lengths <= 4, 5, 6, 7, 8, >=9
+        expected_freqs = [0.1174, 0.2430, 0.2493, 0.1752, 0.1027, 0.1124]
         
         # Count longest runs in each block
         run_counts = {length: 0 for length in run_lengths}
@@ -497,88 +691,47 @@ class StatsAnalyzer:
         }
     
     def _approximate_entropy_test(self, binary_sequence: List[int], m: int = 2) -> Dict[str, Any]:
-        """NIST Approximate Entropy Test - compares the frequency of overlapping blocks of two consecutive lengths"""
+        """NIST Approximate Entropy Test - uses NIST SP 800-22 formula: chi2 = 2*n*(ln2 - ApEn), df = 2^m."""
         n = len(binary_sequence)
-        # Need enough bits to form patterns of length m+1
         min_required = 10 * (2 ** m)  # NIST recommends at least 10 * 2^m bits
         if n < min_required:
             return {"p_value": None, "statistic": None, "passed": False, "error": f"Sequence too short (need at least {min_required} bits for m={m})"}
         
-        # For binary sequences, we use m and m+1 pattern lengths
-        # Count patterns of length m and m+1
         def count_patterns(pattern_length):
-            """Count frequency of each pattern of given length"""
             pattern_counts = {}
             num_patterns = n - pattern_length + 1
-            
             for i in range(num_patterns):
                 pattern = tuple(binary_sequence[i:i + pattern_length])
                 pattern_counts[pattern] = pattern_counts.get(pattern, 0) + 1
-            
             return pattern_counts, num_patterns
         
-        # Count patterns of length m
         patterns_m, num_patterns_m = count_patterns(m)
-        
-        # Count patterns of length m+1
         patterns_m1, num_patterns_m1 = count_patterns(m + 1)
         
-        # Calculate phi(m) and phi(m+1)
         def calculate_phi(pattern_counts, num_patterns):
-            """Calculate phi value for approximate entropy"""
             phi = 0.0
             for pattern, count in pattern_counts.items():
                 if count > 0:
                     prob = count / num_patterns
-                    phi += prob * np.log(prob + 1e-10)  # Add small epsilon to avoid log(0)
+                    phi += prob * np.log(prob + 1e-10)
             return phi
         
         phi_m = calculate_phi(patterns_m, num_patterns_m)
         phi_m1 = calculate_phi(patterns_m1, num_patterns_m1)
-        
-        # Approximate entropy
         ap_en = phi_m - phi_m1
         
-        # Expected number of unique patterns
-        expected_patterns_m = 2 ** m
-        expected_patterns_m1 = 2 ** (m + 1)
-        
-        # Calculate chi-square statistic
-        # Compare observed pattern frequencies to expected uniform distribution
-        chi_square_m = 0.0
-        expected_freq_m = num_patterns_m / expected_patterns_m
-        for pattern_idx in range(expected_patterns_m):
-            # Convert pattern index to binary tuple
-            # For pattern_idx, extract bits from MSB to LSB to match tuple order
-            pattern_tuple = tuple((pattern_idx >> (m - 1 - i)) & 1 for i in range(m))
-            observed = patterns_m.get(pattern_tuple, 0)
-            if expected_freq_m > 0:
-                chi_square_m += ((observed - expected_freq_m) ** 2) / expected_freq_m
-        
-        chi_square_m1 = 0.0
-        expected_freq_m1 = num_patterns_m1 / expected_patterns_m1
-        for pattern_idx in range(expected_patterns_m1):
-            # Convert pattern index to binary tuple for m+1 length
-            pattern_tuple = tuple((pattern_idx >> (m - i)) & 1 for i in range(m + 1))
-            observed = patterns_m1.get(pattern_tuple, 0)
-            if expected_freq_m1 > 0:
-                chi_square_m1 += ((observed - expected_freq_m1) ** 2) / expected_freq_m1
-        
-        # Combined chi-square (degrees of freedom = expected_patterns_m + expected_patterns_m1 - 2)
-        chi_square = chi_square_m + chi_square_m1
-        df = expected_patterns_m + expected_patterns_m1 - 2
-        
-        # P-value
-        p_value = 1 - chi2.cdf(chi_square, df) if df > 0 else None
-        
-        if p_value is None:
-            return {"p_value": None, "statistic": None, "passed": False, "error": "Invalid degrees of freedom"}
-        
+        # NIST SP 800-22: chi2 = 2*n*(ln2 - ApEn), degrees of freedom = 2^m
+        ln2 = np.log(2)
+        chi2_stat = 2.0 * n * (ln2 - ap_en)
+        if chi2_stat < 0:
+            chi2_stat = 0.0
+        df = 2 ** m
+        p_value = float(1 - chi2.cdf(chi2_stat, df))
         passed = p_value > 0.01
         
         return {
             "p_value": float(p_value),
-            "statistic": float(chi_square),
+            "statistic": float(chi2_stat),
             "approximate_entropy": float(ap_en),
             "phi_m": float(phi_m),
             "phi_m1": float(phi_m1),
@@ -790,12 +943,17 @@ class StatsAnalyzer:
         
         # Convert aggregate_stats to ensure all numpy types are converted
         converted_aggregate_stats = self._convert_numpy_types(aggregate_stats)
+
+        # Distribution deviation metrics (ECDF and Q-Q) across runs
+        distribution_deviation = self._compute_distribution_deviation_metrics(runs)
+        distribution_deviation = self._convert_numpy_types(distribution_deviation)
         
         result = {
             "provider": str(provider),
             "num_runs": int(num_runs),
             "count_per_run": int(len(runs[0])) if runs else 0,
             "aggregate_stats": converted_aggregate_stats,
+            "distribution_deviation": distribution_deviation,
             "test_results": {
                 "ks_uniformity_passed": f"{ks_passed_count}/{num_runs}",
                 "runs_test_passed": f"{runs_test_passed_count}/{num_runs}",
