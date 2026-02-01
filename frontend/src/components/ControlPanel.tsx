@@ -76,13 +76,13 @@ const ControlPanel = ({
     deepseek: "You are a random number generator. Generate a single random number between 0 and 1. Respond with ONLY the number, no explanation, no formatting, just the decimal number."
   }
 
-  const getDefaultPromptBatch = (provider: string, count: number) => {
+  const getDefaultPromptBatch = (count: number) => {
     return `You are a random number generator. Generate exactly ${count} random numbers between 0 and 1. Return them in CSV format, one number per line. Only return the numbers, no explanation, no formatting, no headers.`
   }
 
   const getDefaultPrompt = () => {
     if (batchMode) {
-      return getDefaultPromptBatch(provider, count)
+      return getDefaultPromptBatch(count)
     }
     return defaultPromptsOneByOne[provider as keyof typeof defaultPromptsOneByOne] || defaultPromptsOneByOne.openai
   }

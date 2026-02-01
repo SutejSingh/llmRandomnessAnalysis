@@ -160,7 +160,7 @@ const toggleLabelStyle = (isActive: boolean) => ({
 })
 
 const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalysisViewProps) => {
-  const [multiRunPage, setMultiRunPage] = useState<1 | 2 | 3>(1)
+  const [multiRunPage, setMultiRunPage] = useState<1 | 2 | 3 | 4>(1)
   const [overlaidView, setOverlaidView] = useState<'boxplot' | 'ecdf' | 'qq'>('boxplot')
   const [frequencyHistogramView, setFrequencyHistogramView] = useState<'histogram' | 'kde'>('histogram')
   const [qqSelectedRun, setQqSelectedRun] = useState<number | null>(null)
@@ -244,6 +244,7 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
         <button onClick={() => setMultiRunPage(1)} className={multiRunPage === 1 ? 'active' : ''}>Test Results</button>
         <button onClick={() => setMultiRunPage(2)} className={multiRunPage === 2 ? 'active' : ''}>Tables</button>
         <button onClick={() => setMultiRunPage(3)} className={multiRunPage === 3 ? 'active' : ''}>Charts</button>
+        <button onClick={() => setMultiRunPage(4)} className={multiRunPage === 4 ? 'active' : ''}>Deviation</button>
       </div>
 
       {multiRunPage === 1 && (
@@ -532,6 +533,89 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
             </div>
           )}
         </>
+      )}
+
+      {multiRunPage === 4 && analysis.distribution_deviation && (
+        <div className="chart-container">
+          <h4>Distribution Deviation Metrics</h4>
+          <p style={{ fontSize: '12px', color: '#666', marginBottom: '20px', fontStyle: 'italic' }}>
+            ECDF and Q-Q metrics across runs. Each run is normalized to [0, 1] before computing deviations against uniform.
+          </p>
+
+          <div className="stats-tables-container">
+            <div className="chart-container">
+              <h5 style={{ marginBottom: '12px' }}>ECDF Deviation (Uniformity)</h5>
+              <table className="stats-table">
+                <thead>
+                  <tr><th>Metric</th><th>Mean</th><th>St. Dev</th><th>CV</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Max vertical deviation (K-S statistic)</strong></td>
+                    <td>{analysis.distribution_deviation.ecdf?.ks_statistic?.mean?.toFixed(4) ?? 'N/A'}</td>
+                    <td>{analysis.distribution_deviation.ecdf?.ks_statistic?.std_dev?.toFixed(4) ?? 'N/A'}</td>
+                    <td>{analysis.distribution_deviation.ecdf?.ks_statistic?.cv != null ? (analysis.distribution_deviation.ecdf.ks_statistic.cv * 100).toFixed(2) + '%' : 'N/A'}</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Mean absolute deviation (MAD)</strong></td>
+                    <td>{analysis.distribution_deviation.ecdf?.mad?.mean?.toFixed(4) ?? 'N/A'}</td>
+                    <td>{analysis.distribution_deviation.ecdf?.mad?.std_dev?.toFixed(4) ?? 'N/A'}</td>
+                    <td>{analysis.distribution_deviation.ecdf?.mad?.cv != null ? (analysis.distribution_deviation.ecdf.mad.cv * 100).toFixed(2) + '%' : 'N/A'}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p style={{ fontSize: '11px', color: '#888', marginTop: '8px' }}>
+                K-S captures worst-point deviation; MAD captures average deviation across the ECDF.
+              </p>
+            </div>
+
+            {analysis.distribution_deviation.ecdf?.regional_deviation?.labels?.length > 0 && (
+              <div className="chart-container">
+                <h5 style={{ marginBottom: '12px' }}>Regional ECDF Deviation</h5>
+                <table className="stats-table">
+                  <thead>
+                    <tr>
+                      <th>Region</th>
+                      <th>Mean deviation</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {analysis.distribution_deviation.ecdf.regional_deviation.labels.map((label: string, i: number) => (
+                      <tr key={label}>
+                        <td><strong>{label}</strong></td>
+                        <td>{(analysis.distribution_deviation.ecdf.regional_deviation.mean[i] ?? 0).toFixed(4)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="chart-container">
+              <h5 style={{ marginBottom: '12px' }}>Q-Q Plot Deviation (vs diagonal y=x)</h5>
+              <table className="stats-table">
+                <thead>
+                  <tr><th>Metric</th><th>Mean</th><th>St. Dev</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>R² (coefficient of determination)</strong></td>
+                    <td>{analysis.distribution_deviation.qq?.r_squared?.mean?.toFixed(4) ?? 'N/A'}</td>
+                    <td>{analysis.distribution_deviation.qq?.r_squared?.std_dev?.toFixed(4) ?? 'N/A'}</td>
+                  </tr>
+                  <tr>
+                    <td><strong>MSE from diagonal</strong></td>
+                    <td>{analysis.distribution_deviation.qq?.mse_from_diagonal?.mean?.toFixed(6) ?? 'N/A'}</td>
+                    <td>{analysis.distribution_deviation.qq?.mse_from_diagonal?.std_dev?.toFixed(6) ?? 'N/A'}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p style={{ fontSize: '11px', color: '#888', marginTop: '8px' }}>
+                R² measures how well points follow the diagonal; higher is better. MSE is average squared distance from y=x.
+              </p>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

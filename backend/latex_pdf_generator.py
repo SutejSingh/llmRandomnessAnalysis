@@ -374,6 +374,11 @@ class LatexGenerator:
         latex += r"\subsection{Autocorrelation Analysis by Run}" + "\n\n"
         latex += self._generate_autocorr_table(analysis)
         
+        # Distribution Deviation Metrics (ECDF and Q-Q tables)
+        if analysis.get("distribution_deviation"):
+            latex += r"\subsection{Distribution Deviation Metrics}" + "\n\n"
+            latex += self._generate_distribution_deviation_tables(analysis)
+        
         # Charts for Multi-run summary
         latex += r"\subsection{Multi-Run Summary Charts}" + "\n\n"
         
@@ -508,6 +513,88 @@ class LatexGenerator:
         latex += r"\end{tabular}" + "\n"
         latex += r"\caption{Autocorrelation Analysis by Run}" + "\n"
         latex += r"\end{table}" + "\n\n"
+        
+        return latex
+    
+    def _generate_distribution_deviation_tables(self, analysis: Dict[str, Any]) -> str:
+        """Generate LaTeX tables for ECDF and Q-Q distribution deviation metrics."""
+        dd = analysis.get("distribution_deviation", {})
+        if not dd:
+            return ""
+        latex = ""
+        
+        # ECDF Deviation table (K-S statistic and MAD)
+        ecdf = dd.get("ecdf", {})
+        if ecdf:
+            ks = ecdf.get("ks_statistic", {})
+            mad = ecdf.get("mad", {})
+            if ks or mad:
+                latex += r"\begin{table}[H]" + "\n"
+                latex += r"\centering" + "\n"
+                latex += r"\begin{tabular}{lccc}" + "\n"
+                latex += r"\toprule" + "\n"
+                latex += r"Metric & Mean & Std Dev & CV \\" + "\n"
+                latex += r"\midrule" + "\n"
+                if ks:
+                    m = ks.get("mean", 0)
+                    s = ks.get("std_dev", 0)
+                    cv = ks.get("cv", 0)
+                    cv_pct = f"{cv * 100:.2f}\\%" if cv is not None else "N/A"
+                    latex += f"Max vertical deviation (K-S statistic) & {m:.6f} & {s:.6f} & {cv_pct} \\\\\n"
+                if mad:
+                    m = mad.get("mean", 0)
+                    s = mad.get("std_dev", 0)
+                    cv = mad.get("cv", 0)
+                    cv_pct = f"{cv * 100:.2f}\\%" if cv is not None else "N/A"
+                    latex += f"Mean absolute deviation (MAD) & {m:.6f} & {s:.6f} & {cv_pct} \\\\\n"
+                latex += r"\bottomrule" + "\n"
+                latex += r"\end{tabular}" + "\n"
+                latex += r"\caption{ECDF Deviation (Uniformity)}" + "\n"
+                latex += r"\end{table}" + "\n\n"
+            
+            # Regional ECDF Deviation table
+            regional = ecdf.get("regional_deviation", {})
+            labels = regional.get("labels", [])
+            means = regional.get("mean", [])
+            if labels and means:
+                latex += r"\begin{table}[H]" + "\n"
+                latex += r"\centering" + "\n"
+                latex += r"\begin{tabular}{lc}" + "\n"
+                latex += r"\toprule" + "\n"
+                latex += r"Region & Mean deviation \\" + "\n"
+                latex += r"\midrule" + "\n"
+                for i, label in enumerate(labels):
+                    val = means[i] if i < len(means) else 0
+                    latex += f"{label} & {val:.6f} \\\\\n"
+                latex += r"\bottomrule" + "\n"
+                latex += r"\end{tabular}" + "\n"
+                latex += r"\caption{Regional ECDF Deviation}" + "\n"
+                latex += r"\end{table}" + "\n\n"
+        
+        # Q-Q Plot Deviation table
+        qq = dd.get("qq", {})
+        if qq:
+            r2 = qq.get("r_squared", {})
+            mse = qq.get("mse_from_diagonal", {})
+            if r2 or mse:
+                latex += r"\begin{table}[H]" + "\n"
+                latex += r"\centering" + "\n"
+                latex += r"\begin{tabular}{lcc}" + "\n"
+                latex += r"\toprule" + "\n"
+                latex += r"Metric & Mean & Std Dev \\" + "\n"
+                latex += r"\midrule" + "\n"
+                if r2:
+                    m = r2.get("mean", 0)
+                    s = r2.get("std_dev", 0)
+                    latex += f"R$^2$ (coefficient of determination) & {m:.6f} & {s:.6f} \\\\\n"
+                if mse:
+                    m = mse.get("mean", 0)
+                    s = mse.get("std_dev", 0)
+                    latex += f"MSE from diagonal & {m:.6f} & {s:.6f} \\\\\n"
+                latex += r"\bottomrule" + "\n"
+                latex += r"\end{tabular}" + "\n"
+                latex += r"\caption{Q-Q Plot Deviation (vs diagonal $y=x$)}" + "\n"
+                latex += r"\end{table}" + "\n\n"
         
         return latex
     
