@@ -457,7 +457,7 @@
 }
 
 .user-prompt-editor textarea {
-  min-height: 56px;
+  min-height: 2.5em;
 }
 
 .reset-prompt-button {

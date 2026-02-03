@@ -245,8 +245,8 @@ class LatexGenerator:
         # Aggregate stats (one run: std_dev of mean = 0, range = 0)
         mean_val = basic.get("mean", 0)
         mode_val = basic.get("mode", 0)
-        if mode_val != mode_val:  # NaN check
-            mode_val = None
+        if mode_val == "N/A" or (isinstance(mode_val, float) and (mode_val != mode_val)):  # NaN
+            mode_val = 0
         std_val = basic.get("std", 0)
         skew_val = basic.get("skewness", 0)
         kurt_val = basic.get("kurtosis", 0)
@@ -304,6 +304,7 @@ class LatexGenerator:
         normalized["count_per_run"] = count_per_run or 0
         normalized["test_results"] = test_results
         normalized["aggregate_stats"] = aggregate_stats
+        normalized["combined_stream_stats"] = dict(basic)
         normalized["individual_analyses"] = [analysis]
         normalized["autocorrelation_table"] = autocorrelation_table
         normalized["ecdf_all_runs"] = ecdf_all_runs
@@ -365,6 +366,13 @@ class LatexGenerator:
             passed_value = test_results.get(test_key, f"0/{num_runs}")
             latex += f"\\textbf{{{display_name}}}\\\\[0.5em]\n"
             latex += f"{passed_value} runs passed (p > {p_threshold:.2f})\\\\[1em]\n\n"
+        
+        # Statistics Across All Runs (Combined Stream)
+        combined = analysis.get("combined_stream_stats", {})
+        if combined:
+            latex += r"\subsection{Statistics Across All Runs (Combined Stream)}" + "\n\n"
+            latex += "These statistics are calculated from all numbers across all runs treated as a single stream of data.\\\\[0.5em]\n\n"
+            latex += self._generate_descriptive_stats_table(combined, caption="Statistics on the combined stream (all runs concatenated)")
         
         # Aggregate Statistics Table
         latex += r"\subsection{Aggregate Statistics Across Runs}" + "\n\n"
@@ -444,10 +452,7 @@ class LatexGenerator:
                 mean_val = agg_stats[metric].get("mean", 0)
                 std_dev_val = agg_stats[metric].get("std_dev", 0)
                 range_val = agg_stats[metric].get("range", 0)
-                if mean_val is None or (isinstance(mean_val, float) and (mean_val != mean_val)):  # NaN
-                    latex += f"{metric_name} & N/A & {std_dev_val:.6f} & {range_val:.6f} \\\\\n"
-                else:
-                    latex += f"{metric_name} & {mean_val:.6f} & {std_dev_val:.6f} & {range_val:.6f} \\\\\n"
+                latex += f"{metric_name} & {mean_val:.6f} & {std_dev_val:.6f} & {range_val:.6f} \\\\\n"
         
         latex += r"\bottomrule" + "\n"
         latex += r"\end{tabular}" + "\n"
@@ -475,11 +480,11 @@ class LatexGenerator:
             is_uniform = dist.get("is_uniform", {})
             
             mean_val = basic_stats.get("mean", 0)
-            mode_val = basic_stats.get("mode", None)
-            if mode_val is not None and isinstance(mode_val, float) and mode_val == mode_val:  # not NaN
-                mode_str = f"{mode_val:.4f}"
-            else:
+            mode_val = basic_stats.get("mode", 0)
+            if mode_val == "N/A" or (isinstance(mode_val, float) and (mode_val != mode_val)):
                 mode_str = "N/A"
+            else:
+                mode_str = f"{mode_val:.4f}"
             std_dev = basic_stats.get("std", 0)
             min_val = basic_stats.get("min", 0)
             max_val = basic_stats.get("max", 0)
@@ -891,7 +896,7 @@ class LatexGenerator:
         
         return latex
     
-    def _generate_descriptive_stats_table(self, basic_stats: Dict[str, Any]) -> str:
+    def _generate_descriptive_stats_table(self, basic_stats: Dict[str, Any], caption: str = "Descriptive Statistics") -> str:
         """Generate LaTeX table for descriptive statistics"""
         latex = r"\begin{table}[H]" + "\n"
         latex += r"\centering" + "\n"
@@ -900,14 +905,9 @@ class LatexGenerator:
         latex += r"Metric & Value \\" + "\n"
         latex += r"\midrule" + "\n"
         
-        mode_val = basic_stats.get("mode", None)
-        if mode_val is not None and isinstance(mode_val, float) and mode_val == mode_val:
-            mode_display = mode_val
-        else:
-            mode_display = "N/A"
         stats_list = [
             ("Mean", basic_stats.get("mean", 0)),
-            ("Mode", mode_display),
+            ("Mode", basic_stats.get("mode", "N/A")),
             ("Median", basic_stats.get("median", 0)),
             ("Standard Deviation", basic_stats.get("std", 0)),
             ("Variance", basic_stats.get("variance", 0)),
@@ -922,14 +922,14 @@ class LatexGenerator:
         ]
         
         for metric, value in stats_list:
-            if isinstance(value, (int, float)):
+            if isinstance(value, (int, float)) and value == value:  # exclude NaN
                 latex += f"{metric} & {value:.6f} \\\\\n"
             else:
                 latex += f"{metric} & {value} \\\\\n"
         
         latex += r"\bottomrule" + "\n"
         latex += r"\end{tabular}" + "\n"
-        latex += r"\caption{Descriptive Statistics}" + "\n"
+        latex += f"\\caption{{{caption}}}" + "\n"
         latex += r"\end{table}" + "\n\n"
         
         return latex
