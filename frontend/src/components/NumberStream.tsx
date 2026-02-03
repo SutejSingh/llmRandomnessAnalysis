@@ -4,9 +4,11 @@ import '../styles/NumberStream.css'
 interface NumberStreamProps {
   numbers: number[]
   isStreaming: boolean
+  /** Total numbers expected (count * numRuns); used to show remaining during stream */
+  expectedCount?: number
 }
 
-const NumberStream = ({ numbers, isStreaming }: NumberStreamProps) => {
+const NumberStream = ({ numbers, isStreaming, expectedCount }: NumberStreamProps) => {
   const [isExpanded, setIsExpanded] = useState(false)
   const [displayedNumbers, setDisplayedNumbers] = useState<number[]>([])
   const [recentNumbers, setRecentNumbers] = useState<Set<number>>(new Set())
@@ -70,6 +72,14 @@ const NumberStream = ({ numbers, isStreaming }: NumberStreamProps) => {
     }
   }, [isStreaming, numbers.length])
 
+  // When streaming ends, show all numbers immediately so "X more" / "X remaining" goes away
+  useEffect(() => {
+    if (!isStreaming && numbers.length > 0) {
+      setDisplayedNumbers(numbers)
+      lastCountRef.current = numbers.length
+    }
+  }, [isStreaming, numbers])
+
   // Auto-scroll to bottom when new numbers arrive
   useEffect(() => {
     if (containerRef.current && !isExpanded) {
@@ -124,8 +134,8 @@ const NumberStream = ({ numbers, isStreaming }: NumberStreamProps) => {
                 </span>
               )
             })}
-            {!isExpanded && numbers.length > displayedNumbers.length && (
-              <span className="more-indicator">... streaming ({numbers.length - displayedNumbers.length} pending)</span>
+            {!isExpanded && isStreaming && expectedCount != null && numbers.length < expectedCount && (
+              <span className="more-indicator">... streaming ({expectedCount - numbers.length} remaining)</span>
             )}
             {!isExpanded && !isStreaming && numbers.length > displayedNumbers.length && (
               <span className="more-indicator">... and {numbers.length - displayedNumbers.length} more (click any number to expand)</span>

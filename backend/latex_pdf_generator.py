@@ -244,11 +244,15 @@ class LatexGenerator:
         
         # Aggregate stats (one run: std_dev of mean = 0, range = 0)
         mean_val = basic.get("mean", 0)
+        mode_val = basic.get("mode", 0)
+        if mode_val != mode_val:  # NaN check
+            mode_val = None
         std_val = basic.get("std", 0)
         skew_val = basic.get("skewness", 0)
         kurt_val = basic.get("kurtosis", 0)
         aggregate_stats = {
             "mean": {"mean": mean_val, "std_dev": 0.0, "range": 0.0},
+            "mode": {"mean": mode_val, "std_dev": 0.0, "range": 0.0},
             "std_dev": {"mean": std_val, "std_dev": 0.0, "range": 0.0},
             "skewness": {"mean": skew_val, "std_dev": 0.0, "range": 0.0},
             "kurtosis": {"mean": kurt_val, "std_dev": 0.0, "range": 0.0},
@@ -434,13 +438,16 @@ class LatexGenerator:
         latex += r"Metric & Mean of Mean & Std Dev of Mean & Range \\" + "\n"
         latex += r"\midrule" + "\n"
         
-        for metric in ["mean", "std_dev", "skewness", "kurtosis"]:
+        for metric in ["mean", "mode", "std_dev", "skewness", "kurtosis"]:
             if metric in agg_stats:
                 metric_name = metric.replace("_", " ").title()
                 mean_val = agg_stats[metric].get("mean", 0)
                 std_dev_val = agg_stats[metric].get("std_dev", 0)
                 range_val = agg_stats[metric].get("range", 0)
-                latex += f"{metric_name} & {mean_val:.6f} & {std_dev_val:.6f} & {range_val:.6f} \\\\\n"
+                if mean_val is None or (isinstance(mean_val, float) and (mean_val != mean_val)):  # NaN
+                    latex += f"{metric_name} & N/A & {std_dev_val:.6f} & {range_val:.6f} \\\\\n"
+                else:
+                    latex += f"{metric_name} & {mean_val:.6f} & {std_dev_val:.6f} & {range_val:.6f} \\\\\n"
         
         latex += r"\bottomrule" + "\n"
         latex += r"\end{tabular}" + "\n"
@@ -457,9 +464,9 @@ class LatexGenerator:
         # Data format is .4f (e.g., "0.5562") which is ~6 chars, so use 1.0cm width
         latex = r"\begin{table}[H]" + "\n"
         latex += r"\centering" + "\n"
-        latex += r"\begin{tabular}{lrrrrrc}" + "\n"
+        latex += r"\begin{tabular}{lrrrrrrc}" + "\n"
         latex += r"\toprule" + "\n"
-        latex += r"Run & Mean & Std Dev & Min & Max & Range & KS Test \\" + "\n"
+        latex += r"Run & Mean & Mode & Std Dev & Min & Max & Range & KS Test \\" + "\n"
         latex += r"\midrule" + "\n"
         
         for idx, run_analysis in enumerate(individual_analyses):
@@ -468,6 +475,11 @@ class LatexGenerator:
             is_uniform = dist.get("is_uniform", {})
             
             mean_val = basic_stats.get("mean", 0)
+            mode_val = basic_stats.get("mode", None)
+            if mode_val is not None and isinstance(mode_val, float) and mode_val == mode_val:  # not NaN
+                mode_str = f"{mode_val:.4f}"
+            else:
+                mode_str = "N/A"
             std_dev = basic_stats.get("std", 0)
             min_val = basic_stats.get("min", 0)
             max_val = basic_stats.get("max", 0)
@@ -475,7 +487,7 @@ class LatexGenerator:
             ks_p = is_uniform.get("ks_p", 0)
             ks_pass = "Yes" if ks_p > 0.05 else "No"
             
-            latex += f"{idx + 1} & {mean_val:.4f} & {std_dev:.4f} & {min_val:.4f} & {max_val:.4f} & {range_val:.4f} & {ks_pass} \\\\\n"
+            latex += f"{idx + 1} & {mean_val:.4f} & {mode_str} & {std_dev:.4f} & {min_val:.4f} & {max_val:.4f} & {range_val:.4f} & {ks_pass} \\\\\n"
         
         latex += r"\bottomrule" + "\n"
         latex += r"\end{tabular}" + "\n"
@@ -888,9 +900,14 @@ class LatexGenerator:
         latex += r"Metric & Value \\" + "\n"
         latex += r"\midrule" + "\n"
         
+        mode_val = basic_stats.get("mode", None)
+        if mode_val is not None and isinstance(mode_val, float) and mode_val == mode_val:
+            mode_display = mode_val
+        else:
+            mode_display = "N/A"
         stats_list = [
             ("Mean", basic_stats.get("mean", 0)),
-            ("Mode", basic_stats.get("mode", "N/A")),
+            ("Mode", mode_display),
             ("Median", basic_stats.get("median", 0)),
             ("Standard Deviation", basic_stats.get("std", 0)),
             ("Variance", basic_stats.get("variance", 0)),

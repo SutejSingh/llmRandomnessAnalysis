@@ -269,6 +269,7 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
                 <thead><tr><th>Metric</th><th>Mean Across Runs</th><th>St.Dev Across Runs</th><th>Range</th></tr></thead>
                 <tbody>
                   <tr><td><strong>Mean</strong></td><td>{analysis.aggregate_stats.mean?.mean?.toFixed(4) || 'N/A'}</td><td>{analysis.aggregate_stats.mean?.std_dev?.toFixed(4) || 'N/A'}</td><td>{analysis.aggregate_stats.mean?.range?.toFixed(4) || 'N/A'}</td></tr>
+                  <tr><td><strong>Mode</strong></td><td>{analysis.aggregate_stats.mode?.mean != null && !Number.isNaN(analysis.aggregate_stats.mode.mean) ? analysis.aggregate_stats.mode.mean.toFixed(4) : 'N/A'}</td><td>{analysis.aggregate_stats.mode?.std_dev != null ? analysis.aggregate_stats.mode.std_dev.toFixed(4) : 'N/A'}</td><td>{analysis.aggregate_stats.mode?.range != null ? analysis.aggregate_stats.mode.range.toFixed(4) : 'N/A'}</td></tr>
                   <tr><td><strong>Std Dev</strong></td><td>{analysis.aggregate_stats.std_dev?.mean?.toFixed(4) || 'N/A'}</td><td>{analysis.aggregate_stats.std_dev?.std_dev?.toFixed(4) || 'N/A'}</td><td>{analysis.aggregate_stats.std_dev?.range?.toFixed(4) || 'N/A'}</td></tr>
                   <tr><td><strong>Skewness</strong></td><td>{analysis.aggregate_stats.skewness?.mean?.toFixed(4) || 'N/A'}</td><td>{analysis.aggregate_stats.skewness?.std_dev?.toFixed(4) || 'N/A'}</td><td>{analysis.aggregate_stats.skewness?.range?.toFixed(4) || 'N/A'}</td></tr>
                   <tr><td><strong>Kurtosis</strong></td><td>{analysis.aggregate_stats.kurtosis?.mean?.toFixed(4) || 'N/A'}</td><td>{analysis.aggregate_stats.kurtosis?.std_dev?.toFixed(4) || 'N/A'}</td><td>{analysis.aggregate_stats.kurtosis?.range?.toFixed(4) || 'N/A'}</td></tr>
@@ -280,7 +281,7 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
                 <h4>Per-Run Statistics Summary</h4>
                 <div className="table-scroll-wrapper table-scroll-wrapper--5-rows" style={{ marginBottom: '30px' }}>
                   <table className="stats-table">
-                    <thead><tr><th>Run</th><th>Mean</th><th>Std Dev</th><th>Min</th><th>Max</th><th>Range</th><th>KS Test (p)</th></tr></thead>
+                    <thead><tr><th>Run</th><th>Mean</th><th>Mode</th><th>Std Dev</th><th>Min</th><th>Max</th><th>Range</th><th>KS Test (p)</th></tr></thead>
                     <tbody>
                       {analysis.individual_analyses.map((runAnalysis: any, idx: number) => (
                         <tr
@@ -292,6 +293,7 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
                         >
                           <td><strong>Run {idx + 1}</strong></td>
                           <td>{runAnalysis.basic_stats?.mean?.toFixed(4) || 'N/A'}</td>
+                          <td>{runAnalysis.basic_stats?.mode != null && typeof runAnalysis.basic_stats.mode === 'number' && !Number.isNaN(runAnalysis.basic_stats.mode) ? runAnalysis.basic_stats.mode.toFixed(4) : 'N/A'}</td>
                           <td>{runAnalysis.basic_stats?.std?.toFixed(4) || 'N/A'}</td>
                           <td>{runAnalysis.basic_stats?.min?.toFixed(4) || 'N/A'}</td>
                           <td>{runAnalysis.basic_stats?.max?.toFixed(4) || 'N/A'}</td>
