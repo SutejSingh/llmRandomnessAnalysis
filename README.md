@@ -1,4 +1,4 @@
-# LLM Random Number Generator
+# LLM Random Number Analysis
 
 A comprehensive application for generating random numbers using different LLM providers (OpenAI, Anthropic, DeepSeek) and performing detailed statistical analysis on the generated sequences.
 
