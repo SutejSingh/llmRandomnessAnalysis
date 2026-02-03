@@ -18,6 +18,8 @@ interface ControlPanelProps {
   setBatchMode: (mode: boolean) => void
   numRuns: number
   setNumRuns: (runs: number) => void
+  apiKey: string
+  setApiKey: (key: string) => void
   onGenerate: () => void
   isStreaming: boolean
   numbers: number[]
@@ -39,6 +41,8 @@ const ControlPanel = ({
   setBatchMode,
   numRuns,
   setNumRuns,
+  apiKey,
+  setApiKey,
   onGenerate,
   isStreaming,
   numbers,
@@ -53,6 +57,8 @@ const ControlPanel = ({
   const [uploadError, setUploadError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [showUserPromptSection, setShowUserPromptSection] = useState(false)
+  const [showApiKeyValue, setShowApiKeyValue] = useState(false)
   
   // Sync local state when props change (but not during user typing)
   useEffect(() => {
@@ -91,7 +97,7 @@ const ControlPanel = ({
     setBatchMode(newBatchMode)
     // Always reset system prompt to default when mode changes
     if (newBatchMode) {
-      setSystemPrompt(getDefaultPromptBatch(provider, count))
+      setSystemPrompt(getDefaultPromptBatch(count))
     } else {
       setSystemPrompt(defaultPromptsOneByOne[provider as keyof typeof defaultPromptsOneByOne] || defaultPromptsOneByOne.openai)
     }
@@ -102,7 +108,7 @@ const ControlPanel = ({
     // Update system prompt to default for new provider
     if (!systemPrompt || systemPrompt === getDefaultPrompt()) {
       if (batchMode) {
-        setSystemPrompt(getDefaultPromptBatch(newProvider, count))
+        setSystemPrompt(getDefaultPromptBatch(count))
       } else {
         setSystemPrompt(defaultPromptsOneByOne[newProvider as keyof typeof defaultPromptsOneByOne] || defaultPromptsOneByOne.openai)
       }
@@ -114,7 +120,7 @@ const ControlPanel = ({
     setCount(newCount)
     // Update system prompt if in batch mode and using default prompt
     if (batchMode) {
-      const currentDefault = getDefaultPromptBatch(provider, newCount)
+      const currentDefault = getDefaultPromptBatch(newCount)
       // Update if prompt is empty or matches the old default
       if (!systemPrompt || systemPrompt.includes(`${oldCount} random numbers`)) {
         setSystemPrompt(currentDefault)
@@ -424,20 +430,60 @@ const ControlPanel = ({
           </button>
         </div>
 
-        <div className="prompt-editor user-prompt-editor">
+        <div className="api-key-section">
+          <button
+            type="button"
+            onClick={() => setShowUserPromptSection(!showUserPromptSection)}
+            className="toggle-api-key-button"
+          >
+            {showUserPromptSection ? '▼ Hide User Prompt' : '▶ User Prompt (optional)'}
+          </button>
+          {showUserPromptSection && (
+            <div className="prompt-editor user-prompt-editor">
+              <label>
+                <strong className="system-prompt-label">User Prompt:</strong>
+                <textarea
+                  value={userPrompt}
+                  onChange={(e) => setUserPrompt(e.target.value)}
+                  placeholder="Optional. Leave empty to send only the system prompt to the LLM."
+                  rows={1}
+                  disabled={isStreaming}
+                />
+              </label>
+              <p style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+                Leave empty to send only the system prompt; no user message is sent.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="api-key-editor">
           <label>
-            <strong className="system-prompt-label">User Prompt:</strong>
-            <textarea
-              value={userPrompt}
-              onChange={(e) => setUserPrompt(e.target.value)}
-              placeholder="Optional. Leave empty to send only the system prompt to the LLM."
-              rows={1}
-              disabled={isStreaming}
-            />
+            <strong className="system-prompt-label">API Key for selected provider</strong>
           </label>
-          <p style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
-            Leave empty to send only the system prompt; no user message is sent.
+          <p style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>
+            If set, this overrides the key from the server&apos;s .env. Used for OpenAI, Anthropic, or DeepSeek when generating.
           </p>
+          <div className="api-key-input-wrapper">
+            <input
+              type={showApiKeyValue ? 'text' : 'password'}
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="sk-... or your provider API key"
+              disabled={isStreaming}
+              className="api-key-input"
+              autoComplete="off"
+            />
+            <button
+              type="button"
+              onClick={() => setShowApiKeyValue(!showApiKeyValue)}
+              className="toggle-visibility-button"
+              title={showApiKeyValue ? 'Hide' : 'Show'}
+              tabIndex={-1}
+            >
+              {showApiKeyValue ? '🙈' : '👁'}
+            </button>
+          </div>
         </div>
 
         <div className="number-stream-container">

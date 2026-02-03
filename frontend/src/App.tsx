@@ -35,6 +35,7 @@ function App() {
   const [count, setCount] = useState(100)
   const [batchMode, setBatchMode] = useState(false)
   const [numRuns, setNumRuns] = useState(1)
+  const [apiKey, setApiKey] = useState('')
   const [allRuns, setAllRuns] = useState<number[][]>([])
   const numbersBatchRef = useRef<number[]>([])
   const BATCH_SIZE = 50
@@ -68,7 +69,8 @@ function App() {
             count,
             system_prompt: systemPrompt && systemPrompt.trim() ? systemPrompt.trim() : undefined,
             user_prompt: userPrompt && userPrompt.trim() ? userPrompt.trim() : undefined,
-            batch_mode: batchMode
+            batch_mode: batchMode,
+            api_key: apiKey && apiKey.trim() ? apiKey.trim() : undefined
           })
         })
 
@@ -382,6 +384,8 @@ function App() {
           setBatchMode={setBatchMode}
           numRuns={numRuns}
           setNumRuns={setNumRuns}
+          apiKey={apiKey}
+          setApiKey={setApiKey}
           onGenerate={handleGenerate}
           isStreaming={isStreaming}
           numbers={numbers}
