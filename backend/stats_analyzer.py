@@ -271,11 +271,23 @@ class StatsAnalyzer:
         
         return analysis
     
+    @staticmethod
+    def _mode_continuous(arr: np.ndarray, bins: int = 50) -> float:
+        """Mode for continuous data: midpoint of the histogram bin with highest count."""
+        if len(arr) == 0:
+            return float('nan')
+        counts, edges = np.histogram(arr, bins=min(bins, max(1, len(arr))))
+        if np.max(counts) == 0:
+            return float(np.median(arr))
+        i = np.argmax(counts)
+        return float((edges[i] + edges[i + 1]) / 2)
+
     def _basic_stats(self, arr: np.ndarray) -> Dict[str, float]:
         """Calculate basic descriptive statistics (sample variance/std with ddof=1)."""
         return {
             "mean": float(np.mean(arr)),
             "median": float(np.median(arr)),
+            "mode": self._mode_continuous(arr),
             "std": float(np.std(arr, ddof=1)) if len(arr) > 1 else 0.0,
             "variance": float(np.var(arr, ddof=1)) if len(arr) > 1 else 0.0,
             "min": float(np.min(arr)),
@@ -873,6 +885,10 @@ class StatsAnalyzer:
         std_devs_arr = np.array(std_devs)
         skewnesses_arr = np.array(skewnesses)
         kurtoses_arr = np.array(kurtoses)
+        modes = [a.get("basic_stats", {}).get("mode", np.nan) for a in individual_analyses]
+        modes_arr = np.array([m for m in modes if not (isinstance(m, float) and np.isnan(m))], dtype=float)
+        if len(modes_arr) == 0:
+            modes_arr = np.array(means_arr)  # fallback so structure exists
         
         # Helper function to calculate stats across runs for a metric
         def calc_metric_stats(metric_arr):
@@ -892,7 +908,8 @@ class StatsAnalyzer:
             "mean": calc_metric_stats(means_arr),
             "std_dev": calc_metric_stats(std_devs_arr),
             "skewness": calc_metric_stats(skewnesses_arr),
-            "kurtosis": calc_metric_stats(kurtoses_arr)
+            "kurtosis": calc_metric_stats(kurtoses_arr),
+            "mode": calc_metric_stats(modes_arr),
         }
         
         # Test pass counts
@@ -909,6 +926,9 @@ class StatsAnalyzer:
             all_numbers.extend(run_numbers)
         
         all_numbers_arr = np.array(all_numbers)
+        
+        # Statistics treating all numbers across all runs as a single stream
+        combined_stream_stats = self._convert_numpy_types(self._basic_stats(all_numbers_arr)) if len(all_numbers_arr) > 0 else {}
         
         # Calculate frequency histogram
         # Use bins to handle continuous data - use 50 bins by default
@@ -953,6 +973,7 @@ class StatsAnalyzer:
             "num_runs": int(num_runs),
             "count_per_run": int(len(runs[0])) if runs else 0,
             "aggregate_stats": converted_aggregate_stats,
+            "combined_stream_stats": combined_stream_stats,
             "distribution_deviation": distribution_deviation,
             "test_results": {
                 "ks_uniformity_passed": f"{ks_passed_count}/{num_runs}",

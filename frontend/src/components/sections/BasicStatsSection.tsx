@@ -28,6 +28,7 @@ const BasicStatsSection = ({ analysis, view, onViewChange }: BasicStatsSectionPr
         <div className="stats-grid">
           <div className="stat-card"><div className="stat-label">Mean</div><div className="stat-value">{analysis.basic_stats.mean.toFixed(4)}</div></div>
           <div className="stat-card"><div className="stat-label">Median</div><div className="stat-value">{analysis.basic_stats.median.toFixed(4)}</div></div>
+          <div className="stat-card"><div className="stat-label">Mode</div><div className="stat-value">{typeof analysis.basic_stats.mode === 'number' && !Number.isNaN(analysis.basic_stats.mode) ? analysis.basic_stats.mode.toFixed(4) : 'N/A'}</div></div>
           <div className="stat-card"><div className="stat-label">Std Dev</div><div className="stat-value">{analysis.basic_stats.std.toFixed(4)}</div></div>
           <div className="stat-card"><div className="stat-label">Variance</div><div className="stat-value">{analysis.basic_stats.variance.toFixed(4)}</div></div>
           <div className="stat-card"><div className="stat-label">Min</div><div className="stat-value">{analysis.basic_stats.min.toFixed(4)}</div></div>

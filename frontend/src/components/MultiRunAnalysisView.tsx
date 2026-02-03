@@ -262,6 +262,28 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
 
       {multiRunPage === 2 && (
         <>
+          {analysis.combined_stream_stats && Object.keys(analysis.combined_stream_stats).length > 0 && (
+            <div className="chart-container" style={{ marginBottom: '24px' }}>
+              <h4>Statistics Across All Runs (Combined Stream)</h4>
+              <p style={{ fontSize: '13px', color: '#555', marginBottom: '16px', lineHeight: 1.5 }}>
+                The statistics below are calculated from all numbers across all runs treated as a single stream of data. Each value is computed on the concatenation of every run, so they describe the overall distribution of the full dataset.
+              </p>
+              <div className="stats-grid">
+                <div className="stat-card"><div className="stat-label">Mean</div><div className="stat-value">{typeof analysis.combined_stream_stats.mean === 'number' ? analysis.combined_stream_stats.mean.toFixed(4) : 'N/A'}</div></div>
+                <div className="stat-card"><div className="stat-label">Mode</div><div className="stat-value">{typeof analysis.combined_stream_stats.mode === 'number' && !Number.isNaN(analysis.combined_stream_stats.mode) ? analysis.combined_stream_stats.mode.toFixed(4) : 'N/A'}</div></div>
+                <div className="stat-card"><div className="stat-label">Median</div><div className="stat-value">{typeof analysis.combined_stream_stats.median === 'number' ? analysis.combined_stream_stats.median.toFixed(4) : 'N/A'}</div></div>
+                <div className="stat-card"><div className="stat-label">Std Dev</div><div className="stat-value">{typeof analysis.combined_stream_stats.std === 'number' ? analysis.combined_stream_stats.std.toFixed(4) : 'N/A'}</div></div>
+                <div className="stat-card"><div className="stat-label">Variance</div><div className="stat-value">{typeof analysis.combined_stream_stats.variance === 'number' ? analysis.combined_stream_stats.variance.toFixed(4) : 'N/A'}</div></div>
+                <div className="stat-card"><div className="stat-label">Min</div><div className="stat-value">{typeof analysis.combined_stream_stats.min === 'number' ? analysis.combined_stream_stats.min.toFixed(4) : 'N/A'}</div></div>
+                <div className="stat-card"><div className="stat-label">Max</div><div className="stat-value">{typeof analysis.combined_stream_stats.max === 'number' ? analysis.combined_stream_stats.max.toFixed(4) : 'N/A'}</div></div>
+                <div className="stat-card"><div className="stat-label">Q25</div><div className="stat-value">{typeof analysis.combined_stream_stats.q25 === 'number' ? analysis.combined_stream_stats.q25.toFixed(4) : 'N/A'}</div></div>
+                <div className="stat-card"><div className="stat-label">Q50</div><div className="stat-value">{typeof analysis.combined_stream_stats.q50 === 'number' ? analysis.combined_stream_stats.q50.toFixed(4) : 'N/A'}</div></div>
+                <div className="stat-card"><div className="stat-label">Q75</div><div className="stat-value">{typeof analysis.combined_stream_stats.q75 === 'number' ? analysis.combined_stream_stats.q75.toFixed(4) : 'N/A'}</div></div>
+                <div className="stat-card"><div className="stat-label">Skewness</div><div className="stat-value">{typeof analysis.combined_stream_stats.skewness === 'number' ? analysis.combined_stream_stats.skewness.toFixed(4) : 'N/A'}</div></div>
+                <div className="stat-card"><div className="stat-label">Kurtosis</div><div className="stat-value">{typeof analysis.combined_stream_stats.kurtosis === 'number' ? analysis.combined_stream_stats.kurtosis.toFixed(4) : 'N/A'}</div></div>
+              </div>
+            </div>
+          )}
           <div className="stats-tables-container">
             <div className="chart-container">
               <h4>Aggregate Statistics Across Runs</h4>
@@ -269,6 +291,7 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
                 <thead><tr><th>Metric</th><th>Mean Across Runs</th><th>St.Dev Across Runs</th><th>Range</th></tr></thead>
                 <tbody>
                   <tr><td><strong>Mean</strong></td><td>{analysis.aggregate_stats.mean?.mean?.toFixed(4) || 'N/A'}</td><td>{analysis.aggregate_stats.mean?.std_dev?.toFixed(4) || 'N/A'}</td><td>{analysis.aggregate_stats.mean?.range?.toFixed(4) || 'N/A'}</td></tr>
+                  <tr><td><strong>Mode</strong></td><td>{analysis.aggregate_stats.mode?.mean != null ? analysis.aggregate_stats.mode.mean.toFixed(4) : 'N/A'}</td><td>{analysis.aggregate_stats.mode?.std_dev != null ? analysis.aggregate_stats.mode.std_dev.toFixed(4) : 'N/A'}</td><td>{analysis.aggregate_stats.mode?.range != null ? analysis.aggregate_stats.mode.range.toFixed(4) : 'N/A'}</td></tr>
                   <tr><td><strong>Std Dev</strong></td><td>{analysis.aggregate_stats.std_dev?.mean?.toFixed(4) || 'N/A'}</td><td>{analysis.aggregate_stats.std_dev?.std_dev?.toFixed(4) || 'N/A'}</td><td>{analysis.aggregate_stats.std_dev?.range?.toFixed(4) || 'N/A'}</td></tr>
                   <tr><td><strong>Skewness</strong></td><td>{analysis.aggregate_stats.skewness?.mean?.toFixed(4) || 'N/A'}</td><td>{analysis.aggregate_stats.skewness?.std_dev?.toFixed(4) || 'N/A'}</td><td>{analysis.aggregate_stats.skewness?.range?.toFixed(4) || 'N/A'}</td></tr>
                   <tr><td><strong>Kurtosis</strong></td><td>{analysis.aggregate_stats.kurtosis?.mean?.toFixed(4) || 'N/A'}</td><td>{analysis.aggregate_stats.kurtosis?.std_dev?.toFixed(4) || 'N/A'}</td><td>{analysis.aggregate_stats.kurtosis?.range?.toFixed(4) || 'N/A'}</td></tr>
@@ -280,7 +303,7 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
                 <h4>Per-Run Statistics Summary</h4>
                 <div className="table-scroll-wrapper table-scroll-wrapper--5-rows" style={{ marginBottom: '30px' }}>
                   <table className="stats-table">
-                    <thead><tr><th>Run</th><th>Mean</th><th>Std Dev</th><th>Min</th><th>Max</th><th>Range</th><th>KS Test (p)</th></tr></thead>
+                    <thead><tr><th>Run</th><th>Mean</th><th>Mode</th><th>Std Dev</th><th>Min</th><th>Max</th><th>Range</th><th>KS Test (p)</th></tr></thead>
                     <tbody>
                       {analysis.individual_analyses.map((runAnalysis: any, idx: number) => (
                         <tr
@@ -292,6 +315,7 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
                         >
                           <td><strong>Run {idx + 1}</strong></td>
                           <td>{runAnalysis.basic_stats?.mean?.toFixed(4) || 'N/A'}</td>
+                          <td>{runAnalysis.basic_stats?.mode != null && !Number.isNaN(runAnalysis.basic_stats.mode) ? runAnalysis.basic_stats.mode.toFixed(4) : 'N/A'}</td>
                           <td>{runAnalysis.basic_stats?.std?.toFixed(4) || 'N/A'}</td>
                           <td>{runAnalysis.basic_stats?.min?.toFixed(4) || 'N/A'}</td>
                           <td>{runAnalysis.basic_stats?.max?.toFixed(4) || 'N/A'}</td>

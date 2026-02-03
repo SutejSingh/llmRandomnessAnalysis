@@ -14,27 +14,34 @@ const NumberStream = ({ numbers, isStreaming }: NumberStreamProps) => {
   const lastCountRef = useRef(0)
   const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Animate numbers appearing one by one (only when not expanded)
+  // Animate numbers appearing one by one only when streaming; when not streaming show all immediately (e.g. CSV upload)
   useEffect(() => {
     if (isExpanded) {
-      // When expanded, sync displayedNumbers with all numbers immediately
       if (displayedNumbers.length !== numbers.length) {
         setDisplayedNumbers(numbers)
       }
       return
     }
 
+    if (!isStreaming) {
+      // CSV upload or non-streaming: show all numbers immediately, no "... pending" / "... more" text
+      if (displayedNumbers.length !== numbers.length) {
+        setDisplayedNumbers(numbers)
+      }
+      lastCountRef.current = numbers.length
+      return
+    }
+
     if (numbers.length > lastCountRef.current) {
       const newNumbers = numbers.slice(lastCountRef.current)
       let index = 0
-      
+
       const addNumber = () => {
         if (index < newNumbers.length && !isExpanded) {
           const num = newNumbers[index]
           setDisplayedNumbers(prev => [...prev, num])
           setRecentNumbers(prev => new Set([...prev, num]))
-          
-          // Remove highlight after animation
+
           setTimeout(() => {
             setRecentNumbers(prev => {
               const next = new Set(prev)
@@ -42,24 +49,24 @@ const NumberStream = ({ numbers, isStreaming }: NumberStreamProps) => {
               return next
             })
           }, 600)
-          
+
           index++
           if (index < newNumbers.length) {
-            animationTimeoutRef.current = setTimeout(addNumber, 100) // Add one number every 100ms
+            animationTimeoutRef.current = setTimeout(addNumber, 100)
           }
         }
       }
-      
+
       addNumber()
       lastCountRef.current = numbers.length
     }
-    
+
     return () => {
       if (animationTimeoutRef.current) {
         clearTimeout(animationTimeoutRef.current)
       }
     }
-  }, [numbers, isExpanded])
+  }, [numbers, isExpanded, isStreaming])
 
   // Reset when streaming starts
   useEffect(() => {

@@ -424,14 +424,14 @@ const ControlPanel = ({
           </button>
         </div>
 
-        <div className="prompt-editor">
+        <div className="prompt-editor user-prompt-editor">
           <label>
             <strong className="system-prompt-label">User Prompt:</strong>
             <textarea
               value={userPrompt}
               onChange={(e) => setUserPrompt(e.target.value)}
               placeholder="Optional. Leave empty to send only the system prompt to the LLM."
-              rows={2}
+              rows={1}
               disabled={isStreaming}
             />
           </label>
