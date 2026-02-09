@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import {
   BasicStatsSection,
   DistributionSection,
@@ -66,28 +67,28 @@ const PerRunAnalysisView = ({
           type="button"
           onClick={() => setRun(Math.max(1, currentRun - 1))}
           disabled={currentRun <= 1}
-          title="Previous run"
-          aria-label="Previous run"
+          title={t('perRun.previousRun')}
+          aria-label={t('perRun.previousRun')}
           style={{ padding: '8px 12px', border: `2px solid ${currentRun <= 1 ? '#999' : '#000'}`, borderRadius: '6px', background: currentRun <= 1 ? '#eee' : '#fff', cursor: currentRun <= 1 ? 'not-allowed' : 'pointer', fontSize: '16px', lineHeight: 1 }}
         >
           ‹
         </button>
-        <label style={{ marginRight: '8px', fontWeight: '600' }}>Run:</label>
+        <label style={{ marginRight: '8px', fontWeight: '600' }}>{t('perRun.run')}</label>
         <select
           value={currentRun}
           onChange={(e) => setRun(parseInt(e.target.value, 10))}
           style={{ padding: '8px 12px', border: '2px solid #000', borderRadius: '6px', fontSize: '14px', cursor: 'pointer', minWidth: '120px' }}
         >
           {individualAnalyses.map((_: any, idx: number) => (
-            <option key={idx + 1} value={idx + 1}>Run {idx + 1}</option>
+            <option key={idx + 1} value={idx + 1}>{t('perRun.runOption', { n: idx + 1 })}</option>
           ))}
         </select>
         <button
           type="button"
           onClick={() => setRun(Math.min(numRuns, currentRun + 1))}
           disabled={currentRun >= numRuns}
-          title="Next run"
-          aria-label="Next run"
+          title={t('perRun.nextRun')}
+          aria-label={t('perRun.nextRun')}
           style={{ padding: '8px 12px', border: `2px solid ${currentRun >= numRuns ? '#999' : '#000'}`, borderRadius: '6px', background: currentRun >= numRuns ? '#eee' : '#fff', cursor: currentRun >= numRuns ? 'not-allowed' : 'pointer', fontSize: '16px', lineHeight: 1 }}
         >
           ›
@@ -95,18 +96,18 @@ const PerRunAnalysisView = ({
       </div>
 
       <div style={{ marginBottom: '20px' }}>
-        <h3 style={{ marginBottom: '10px', color: '#000' }}>Run {currentRun} Analysis</h3>
+        <h3 style={{ marginBottom: '10px', color: '#000' }}>{t('perRun.runAnalysisTitle', { n: currentRun })}</h3>
         <p style={{ color: '#666', fontSize: '14px' }}>
-          Detailed statistical analysis for Run {currentRun} ({runAnalysis.count ?? analysis.count_per_run} numbers)
+          {t('perRun.runAnalysisDesc', { n: currentRun, count: String(runAnalysis.count ?? analysis.count_per_run) })}
         </p>
       </div>
 
       <div style={{ marginBottom: '20px' }}>
-        <h4 style={{ marginBottom: '10px', color: '#000' }}>Analysis Information Display</h4>
+        <h4 style={{ marginBottom: '10px', color: '#000' }}>{t('perRun.analysisInfoDisplay')}</h4>
         <div className="tab-buttons">
           {['basic', 'distribution', 'range', 'independence', 'stationarity', 'spectral', 'nist'].map(tab => (
             <button key={tab} onClick={() => onPerRunTabChange(tab)} className={perRunTab === tab ? 'active' : ''}>
-              {tab === 'nist' ? 'NIST Tests' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab === 'nist' ? t('dashboard.nistTests') : t(`dashboard.${tab}` as 'dashboard.basic')}
             </button>
           ))}
         </div>

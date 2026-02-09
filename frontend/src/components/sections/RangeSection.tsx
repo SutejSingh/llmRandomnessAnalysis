@@ -1,4 +1,5 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { t } from '../../i18n'
 
 interface RangeSectionProps {
   analysis: any
@@ -13,27 +14,27 @@ const RangeSection = ({ analysis, view, onViewChange }: RangeSectionProps) => {
 
   return (
     <div className="stats-section">
-      <h3>Range & Boundary Behavior</h3>
+      <h3>{t('rangeSection.title')}</h3>
       <div className="sub-nav-buttons">
-        <button onClick={() => onViewChange('boundary')} className={view === 'boundary' ? 'active' : ''}>Boundary Stats</button>
-        <button onClick={() => onViewChange('ecdf')} className={view === 'ecdf' ? 'active' : ''}>ECDF</button>
+        <button onClick={() => onViewChange('boundary')} className={view === 'boundary' ? 'active' : ''}>{t('rangeSection.boundaryStats')}</button>
+        <button onClick={() => onViewChange('ecdf')} className={view === 'ecdf' ? 'active' : ''}>{t('rangeSection.ecdf')}</button>
       </div>
 
       {view === 'boundary' && (
         <div className="boundary-info">
           <div className="info-card">
-            <h4>Boundary Statistics</h4>
-            <p>Min: {analysis.range_behavior.boundaries.min.toFixed(4)}</p>
-            <p>Max: {analysis.range_behavior.boundaries.max.toFixed(4)}</p>
-            <p>Near Min: {analysis.range_behavior.boundaries.near_min_count} ({analysis.range_behavior.boundaries.near_min_pct.toFixed(4)}%)</p>
-            <p>Near Max: {analysis.range_behavior.boundaries.near_max_count} ({analysis.range_behavior.boundaries.near_max_pct.toFixed(4)}%)</p>
+            <h4>{t('rangeSection.boundaryStatistics')}</h4>
+            <p>{t('basicStats.min')}: {analysis.range_behavior.boundaries.min.toFixed(4)}</p>
+            <p>{t('basicStats.max')}: {analysis.range_behavior.boundaries.max.toFixed(4)}</p>
+            <p>{t('rangeSection.nearMin', { count: analysis.range_behavior.boundaries.near_min_count, pct: analysis.range_behavior.boundaries.near_min_pct.toFixed(4) })}</p>
+            <p>{t('rangeSection.nearMax', { count: analysis.range_behavior.boundaries.near_max_count, pct: analysis.range_behavior.boundaries.near_max_pct.toFixed(4) })}</p>
           </div>
         </div>
       )}
 
       {view === 'ecdf' && (
         <div className="chart-container">
-          <h4>Empirical Cumulative Distribution Function (ECDF)</h4>
+          <h4>{t('rangeSection.ecdfTitle')}</h4>
           <ResponsiveContainer width="100%" height={250}>
             <LineChart data={ecdfData}>
               <CartesianGrid strokeDasharray="3 3" />

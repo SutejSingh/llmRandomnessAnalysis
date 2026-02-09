@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { t } from '../i18n'
 import '../styles/NumberStream.css'
 
 interface NumberStreamProps {
@@ -12,7 +13,7 @@ const NumberStream = ({ numbers, isStreaming }: NumberStreamProps) => {
   const [recentNumbers, setRecentNumbers] = useState<Set<number>>(new Set())
   const containerRef = useRef<HTMLDivElement>(null)
   const lastCountRef = useRef(0)
-  const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const animationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Animate numbers appearing one by one only when streaming; when not streaming show all immediately (e.g. CSV upload)
   useEffect(() => {
@@ -92,16 +93,16 @@ const NumberStream = ({ numbers, isStreaming }: NumberStreamProps) => {
 
   return (
     <div className="number-stream">
-      <h2>Number Stream</h2>
+      <h2>{t('numberStream.title')}</h2>
       <div className="stream-info">
-        <span>Count: {numbers.length}</span>
-        {isStreaming && <span className="streaming-indicator">● Streaming</span>}
+        <span>{t('numberStream.count', { count: numbers.length })}</span>
+        {isStreaming && <span className="streaming-indicator">{t('numberStream.streaming')}</span>}
         {numbers.length > 0 && (
           <button 
             onClick={handleToggleExpand}
             className="expand-button"
           >
-            {isExpanded ? '▼ Collapse' : '▶ Expand All'}
+            {isExpanded ? t('numberStream.collapse') : t('numberStream.expandAll')}
           </button>
         )}
       </div>
@@ -110,7 +111,7 @@ const NumberStream = ({ numbers, isStreaming }: NumberStreamProps) => {
         className={`stream-container ${isExpanded ? 'expanded' : ''} ${numbers.length === 0 ? 'empty' : ''}`}
       >
         {numbers.length === 0 ? (
-          <div className="empty-stream">No numbers generated yet. Click "Generate Random Numbers" to start.</div>
+          <div className="empty-stream">{t('numberStream.noNumbersYet')}</div>
         ) : (
           <div className="stream-numbers">
             {numbersToShow.map((num, idx) => {
@@ -125,17 +126,17 @@ const NumberStream = ({ numbers, isStreaming }: NumberStreamProps) => {
                       handleToggleExpand()
                     }
                   }}
-                  title={isExpanded ? "Click to collapse" : "Click to expand full list"}
+                  title={isExpanded ? t('numberStream.clickToCollapse') : t('numberStream.clickToExpandFullList')}
                 >
                   {num.toFixed(4)}
                 </span>
               )
             })}
             {!isExpanded && numbers.length > displayedNumbers.length && (
-              <span className="more-indicator">... streaming ({numbers.length - displayedNumbers.length} pending)</span>
+              <span className="more-indicator">{t('numberStream.streamingPending', { pending: numbers.length - displayedNumbers.length })}</span>
             )}
             {!isExpanded && !isStreaming && numbers.length > displayedNumbers.length && (
-              <span className="more-indicator">... and {numbers.length - displayedNumbers.length} more (click any number to expand)</span>
+              <span className="more-indicator">{t('numberStream.andMore', { count: numbers.length - displayedNumbers.length })}</span>
             )}
           </div>
         )}

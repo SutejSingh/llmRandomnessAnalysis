@@ -1,4 +1,5 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { t } from '../../i18n'
 
 interface SpectralSectionProps {
   analysis: any
@@ -32,12 +33,12 @@ const SpectralSection = ({ analysis, view, onViewChange, chartHeight = 250 }: Sp
 
   return (
     <div className="stats-section">
-      <h3>Spectral Analysis</h3>
+      <h3>{t('spectralSection.title')}</h3>
       <div style={{ marginBottom: '20px' }}>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           {([
-            { id: 'magnitude' as const, label: 'FFT Magnitude' },
-            { id: 'power' as const, label: 'Power Spectrum (Periodogram)' }
+            { id: 'magnitude' as const, label: t('spectralSection.fftMagnitude') },
+            { id: 'power' as const, label: t('spectralSection.powerSpectrum') }
           ]).map(({ id, label }) => (
             <label
               key={id}
@@ -54,7 +55,7 @@ const SpectralSection = ({ analysis, view, onViewChange, chartHeight = 250 }: Sp
 
       {view === 'magnitude' && (
         <div className="chart-container">
-          <h4>FFT Magnitude</h4>
+          <h4>{t('spectralSection.fftMagnitudeTitle')}</h4>
           <ResponsiveContainer width="100%" height={chartHeight}>
             <LineChart data={spectralData}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -69,7 +70,7 @@ const SpectralSection = ({ analysis, view, onViewChange, chartHeight = 250 }: Sp
 
       {view === 'power' && (
         <div className="chart-container">
-          <h4>Power Spectrum (Periodogram)</h4>
+          <h4>{t('spectralSection.powerSpectrumTitle')}</h4>
           <ResponsiveContainer width="100%" height={chartHeight}>
             <LineChart data={spectralData}>
               <CartesianGrid strokeDasharray="3 3" />
