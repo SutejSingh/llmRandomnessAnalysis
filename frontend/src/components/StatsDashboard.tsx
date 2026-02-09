@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { t } from '../i18n'
 import '../styles/StatsDashboard.css'
 import DashboardHeader from './DashboardHeader'
 import MultiRunAnalysisView from './MultiRunAnalysisView'
@@ -59,7 +60,7 @@ const StatsDashboard = ({ analysis, allRuns = [] }: StatsDashboardProps) => {
   const handleDownloadCSV = async () => {
     const runsToDownload = getRunsToDownload()
     if (runsToDownload.length === 0) {
-      alert('No data available to download')
+      alert(t('statsDashboard.noDataToDownload'))
       return
     }
     const provider = analysis.provider || 'manual'
@@ -83,13 +84,13 @@ const StatsDashboard = ({ analysis, allRuns = [] }: StatsDashboardProps) => {
       document.body.removeChild(a)
     } catch (error) {
       console.error('Error downloading CSV:', error)
-      alert('Error downloading CSV file. Please try again.')
+      alert(t('statsDashboard.errorDownloadingCsv'))
     }
   }
 
   const handleDownloadPDF = async () => {
     if (!analysis) {
-      alert('No analysis available to download')
+      alert(t('statsDashboard.noAnalysisToDownload'))
       return
     }
     setIsDownloadingPDF(true)
@@ -111,7 +112,7 @@ const StatsDashboard = ({ analysis, allRuns = [] }: StatsDashboardProps) => {
       document.body.removeChild(a)
     } catch (error) {
       console.error('Error downloading PDF:', error)
-      alert('Error downloading PDF file. Please try again.')
+      alert(t('statsDashboard.errorDownloadingPdf'))
     } finally {
       setIsDownloadingPDF(false)
     }

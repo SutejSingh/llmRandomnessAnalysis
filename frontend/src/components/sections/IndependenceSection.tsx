@@ -1,4 +1,5 @@
 import { LineChart, Line, BarChart, Bar, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { t } from '../../i18n'
 
 interface IndependenceSectionProps {
   analysis: any
@@ -16,16 +17,16 @@ const IndependenceSection = ({ analysis, view, onViewChange, chartHeight = 250 }
 
   return (
     <div className="stats-section">
-      <h3>Independence & Correlation Analysis</h3>
+      <h3>{t('independenceSection.title')}</h3>
       <div className="sub-nav-buttons">
-        <button onClick={() => onViewChange('timeseries')} className={view === 'timeseries' ? 'active' : ''}>Time Series</button>
-        <button onClick={() => onViewChange('acf')} className={view === 'acf' ? 'active' : ''}>ACF</button>
-        <button onClick={() => onViewChange('lag1')} className={view === 'lag1' ? 'active' : ''}>Lag-1 Scatter</button>
+        <button onClick={() => onViewChange('timeseries')} className={view === 'timeseries' ? 'active' : ''}>{t('independenceSection.timeSeries')}</button>
+        <button onClick={() => onViewChange('acf')} className={view === 'acf' ? 'active' : ''}>{t('independenceSection.acf')}</button>
+        <button onClick={() => onViewChange('lag1')} className={view === 'lag1' ? 'active' : ''}>{t('independenceSection.lag1Scatter')}</button>
       </div>
 
       {view === 'timeseries' && (
         <div className="chart-container">
-          <h4>Time Series</h4>
+          <h4>{t('independenceSection.timeSeriesTitle')}</h4>
           <ResponsiveContainer width="100%" height={chartHeight}>
             <LineChart data={timeSeriesData}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -40,7 +41,7 @@ const IndependenceSection = ({ analysis, view, onViewChange, chartHeight = 250 }
 
       {view === 'acf' && (
         <div className="chart-container">
-          <h4>Autocorrelation Function (ACF)</h4>
+          <h4>{t('independenceSection.acfTitle')}</h4>
           <ResponsiveContainer width="100%" height={chartHeight}>
             <BarChart data={acfData}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -50,13 +51,13 @@ const IndependenceSection = ({ analysis, view, onViewChange, chartHeight = 250 }
               <Bar dataKey="correlation" fill="#000" />
             </BarChart>
           </ResponsiveContainer>
-          <p style={{ fontSize: '12px', color: '#666', marginTop: '10px' }}>Values near zero indicate independence. Significant peaks suggest correlation.</p>
+          <p style={{ fontSize: '12px', color: '#666', marginTop: '10px' }}>{t('independenceSection.acfNote')}</p>
         </div>
       )}
 
       {view === 'lag1' && (
         <div className="chart-container">
-          <h4>Lag-1 Scatter Plot</h4>
+          <h4>{t('independenceSection.lag1ScatterTitle')}</h4>
           <ResponsiveContainer width="100%" height={chartHeight}>
             <ScatterChart data={lag1Data}>
               <CartesianGrid strokeDasharray="3 3" />

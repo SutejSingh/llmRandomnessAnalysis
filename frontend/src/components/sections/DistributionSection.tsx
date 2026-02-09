@@ -1,4 +1,5 @@
 import { AreaChart, Area, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { t } from '../../i18n'
 
 interface DistributionSectionProps {
   analysis: any
@@ -14,20 +15,20 @@ const DistributionSection = ({ analysis, view, onViewChange }: DistributionSecti
 
   return (
     <div className="stats-section">
-      <h3>Distribution Shape Analysis</h3>
+      <h3>{t('distributionSection.title')}</h3>
       <div className="sub-nav-buttons">
-        <button onClick={() => onViewChange('tests')} className={view === 'tests' ? 'active' : ''}>Tests</button>
-        <button onClick={() => onViewChange('kde')} className={view === 'kde' ? 'active' : ''}>KDE</button>
-        <button onClick={() => onViewChange('qq')} className={view === 'qq' ? 'active' : ''}>Q-Q Plot</button>
+        <button onClick={() => onViewChange('tests')} className={view === 'tests' ? 'active' : ''}>{t('distributionSection.tests')}</button>
+        <button onClick={() => onViewChange('kde')} className={view === 'kde' ? 'active' : ''}>{t('distributionSection.kde')}</button>
+        <button onClick={() => onViewChange('qq')} className={view === 'qq' ? 'active' : ''}>{t('distributionSection.qqPlot')}</button>
       </div>
 
       {view === 'tests' && (
         <div className="test-results test-results--fit">
           <div className="test-card">
-            <h4>Uniformity Test</h4>
-            <p>Kolmogorov-Smirnov: p = {analysis.distribution.is_uniform.ks_p.toFixed(4)}</p>
+            <h4>{t('distributionSection.uniformityTest')}</h4>
+            <p>{t('distributionSection.kolmogorovSmirnov', { p: analysis.distribution.is_uniform.ks_p.toFixed(4) })}</p>
             <p className={analysis.distribution.is_uniform.ks_p > 0.05 ? 'pass' : 'fail'}>
-              {analysis.distribution.is_uniform.ks_p > 0.05 ? '✓ Likely Uniform' : '✗ Not Uniform'}
+              {analysis.distribution.is_uniform.ks_p > 0.05 ? t('distributionSection.likelyUniform') : t('distributionSection.notUniform')}
             </p>
           </div>
         </div>
@@ -35,7 +36,7 @@ const DistributionSection = ({ analysis, view, onViewChange }: DistributionSecti
 
       {view === 'kde' && (
         <div className="chart-container">
-          <h4>Kernel Density Estimate (KDE)</h4>
+          <h4>{t('distributionSection.kernelDensityEstimate')}</h4>
           <ResponsiveContainer width="100%" height={250}>
             <AreaChart data={kdeData}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -50,17 +51,17 @@ const DistributionSection = ({ analysis, view, onViewChange }: DistributionSecti
 
       {view === 'qq' && (
         <div className="chart-container">
-          <h4>Q-Q Plot (Uniform Distribution)</h4>
+          <h4>{t('distributionSection.qqPlotUniform')}</h4>
           <ResponsiveContainer width="100%" height={250}>
             <ScatterChart data={qqData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="theoretical" name="Theoretical" tickFormatter={(value) => typeof value === 'number' ? value.toFixed(4) : value} />
-              <YAxis dataKey="sample" name="Sample" />
+              <XAxis dataKey="theoretical" name={t('distributionSection.theoretical')} tickFormatter={(value) => typeof value === 'number' ? value.toFixed(4) : value} />
+              <YAxis dataKey="sample" name={t('distributionSection.sample')} />
               <Tooltip cursor={{ strokeDasharray: '3 3' }} />
               <Scatter name="Q-Q" dataKey="sample" fill="#000" />
             </ScatterChart>
           </ResponsiveContainer>
-          <p style={{ fontSize: '12px', color: '#666', marginTop: '10px' }}>Points should lie along the diagonal line if uniformly distributed</p>
+          <p style={{ fontSize: '12px', color: '#666', marginTop: '10px' }}>{t('distributionSection.qqDiagonalNote')}</p>
         </div>
       )}
     </div>

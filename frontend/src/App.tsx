@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
+import { t } from './i18n'
 import ControlPanel from './components/ControlPanel'
 import StatsDashboard from './components/StatsDashboard'
 import './styles/App.css'
@@ -344,7 +345,7 @@ function App() {
       console.error('Dummy data error:', error)
       setIsStreaming(false)
       if (axios.isAxiosError(error)) {
-        alert(`Error: ${error.response?.data?.detail || error.message}`)
+        alert(`${t('app.errorPrefix')}${error.response?.data?.detail || error.message}`)
       }
     }
   }
@@ -367,7 +368,7 @@ function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>LLM Random Number Generator</h1>
+        <h1>{t('app.title')}</h1>
       </header>
 
       <div className="app-content">
@@ -399,10 +400,10 @@ function App() {
         ) : (
           allRuns.length > 0 && !isStreaming && (
             <div style={{ padding: '20px', background: '#f5f5f5', borderRadius: '8px', marginTop: '20px' }}>
-              <p>Numbers generated but analysis not available. Runs: {allRuns.length}/{numRuns}</p>
-              <p>Run lengths: {allRuns.map((r, i) => `Run ${i + 1}: ${r.length}`).join(', ')}</p>
+              <p>{t('app.numbersGeneratedButAnalysisNotAvailable', { current: String(allRuns.length), total: String(numRuns) })}</p>
+              <p>{t('app.runLengths', { list: allRuns.map((r, i) => `Run ${i + 1}: ${r.length}`).join(', ') })}</p>
               <button onClick={handleAnalyze} style={{ marginTop: '10px', padding: '8px 16px' }}>
-                Retry Analysis
+                {t('app.retryAnalysis')}
               </button>
             </div>
           )

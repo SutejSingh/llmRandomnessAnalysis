@@ -1,4 +1,5 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { t } from '../../i18n'
 
 interface StationaritySectionProps {
   analysis: any
@@ -18,15 +19,15 @@ const StationaritySection = ({ analysis, view, onViewChange, chartHeight = 250 }
 
   return (
     <div className="stats-section">
-      <h3>Stationarity Analysis</h3>
+      <h3>{t('stationaritySection.title')}</h3>
       <div className="sub-nav-buttons">
-        <button onClick={() => onViewChange('rolling')} className={view === 'rolling' ? 'active' : ''}>Rolling Stats</button>
-        <button onClick={() => onViewChange('chunks')} className={view === 'chunks' ? 'active' : ''}>Chunks</button>
+        <button onClick={() => onViewChange('rolling')} className={view === 'rolling' ? 'active' : ''}>{t('stationaritySection.rollingStats')}</button>
+        <button onClick={() => onViewChange('chunks')} className={view === 'chunks' ? 'active' : ''}>{t('stationaritySection.chunks')}</button>
       </div>
 
       {view === 'rolling' && (
         <div className="chart-container">
-          <h4>Rolling Mean & Standard Deviation</h4>
+          <h4>{t('stationaritySection.rollingMeanStd')}</h4>
           <ResponsiveContainer width="100%" height={chartHeight}>
             <LineChart data={rollingData}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -35,8 +36,8 @@ const StationaritySection = ({ analysis, view, onViewChange, chartHeight = 250 }
               <YAxis yAxisId="right" orientation="right" />
               <Tooltip />
               <Legend />
-              <Line yAxisId="left" type="monotone" dataKey="mean" stroke="#000" strokeWidth={2} name="Rolling Mean" />
-              <Line yAxisId="right" type="monotone" dataKey="std" stroke="#666" strokeWidth={2} name="Rolling Std" />
+              <Line yAxisId="left" type="monotone" dataKey="mean" stroke="#000" strokeWidth={2} name={t('stationaritySection.rollingMean')} />
+              <Line yAxisId="right" type="monotone" dataKey="std" stroke="#666" strokeWidth={2} name={t('stationaritySection.rollingStd')} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -44,15 +45,15 @@ const StationaritySection = ({ analysis, view, onViewChange, chartHeight = 250 }
 
       {view === 'chunks' && (
         <div className="chunks-container">
-          <h4>Chunked Statistics</h4>
+          <h4>{t('stationaritySection.chunkedStatistics')}</h4>
           <div className="chunks-grid">
             {analysis.stationarity.chunks.map((chunk: any) => (
               <div key={chunk.chunk} className="chunk-card">
-                <h5>Chunk {chunk.chunk}</h5>
-                <p>Mean: {chunk.mean.toFixed(4)}</p>
-                <p>Std: {chunk.std.toFixed(4)}</p>
-                <p>Min: {chunk.min.toFixed(4)}</p>
-                <p>Max: {chunk.max.toFixed(4)}</p>
+                <h5>{t('stationaritySection.chunkN', { n: chunk.chunk })}</h5>
+                <p>{t('basicStats.mean')}: {chunk.mean.toFixed(4)}</p>
+                <p>{t('basicStats.stdDev')}: {chunk.std.toFixed(4)}</p>
+                <p>{t('basicStats.min')}: {chunk.min.toFixed(4)}</p>
+                <p>{t('basicStats.max')}: {chunk.max.toFixed(4)}</p>
               </div>
             ))}
           </div>

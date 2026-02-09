@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
+import { t } from '../i18n'
 import NumberStream from './NumberStream'
 import '../styles/ControlPanel.css'
 
@@ -77,13 +78,13 @@ const ControlPanel = ({
   }, [analysisReady])
 
   const defaultPromptsOneByOne = {
-    openai: "You are a random number generator. Generate a single random number between 0 and 1. Respond with ONLY the number, no explanation, no formatting, just the decimal number.",
-    anthropic: "You are a random number generator. Generate a single random number between 0 and 1. Respond with ONLY the number, no explanation, no formatting, just the decimal number.",
-    deepseek: "You are a random number generator. Generate a single random number between 0 and 1. Respond with ONLY the number, no explanation, no formatting, just the decimal number."
+    openai: t('controlPanel.defaultPromptOneByOne'),
+    anthropic: t('controlPanel.defaultPromptOneByOne'),
+    deepseek: t('controlPanel.defaultPromptOneByOne')
   }
 
   const getDefaultPromptBatch = (count: number) => {
-    return `You are a random number generator. Generate exactly ${count} random numbers between 0 and 1. Return them in CSV format, one number per line. Only return the numbers, no explanation, no formatting, no headers.`
+    return t('controlPanel.defaultPromptBatch', { count })
   }
 
   const getDefaultPrompt = () => {
@@ -137,7 +138,7 @@ const ControlPanel = ({
     if (!file) return
 
     if (!file.name.endsWith('.csv')) {
-      setUploadError('Please select a CSV file (.csv extension)')
+      setUploadError(t('controlPanel.pleaseSelectCsv'))
       return
     }
 
@@ -162,10 +163,10 @@ const ControlPanel = ({
     } catch (error) {
       console.error('CSV upload error:', error)
       if (axios.isAxiosError(error)) {
-        const errorMessage = error.response?.data?.detail || error.message || 'Failed to upload CSV'
+        const errorMessage = error.response?.data?.detail || error.message || t('controlPanel.failedToUploadCsv')
         setUploadError(errorMessage)
       } else {
-        setUploadError('Failed to upload CSV file')
+        setUploadError(t('controlPanel.failedToUploadCsv'))
       }
     } finally {
       setIsUploading(false)
@@ -211,20 +212,20 @@ const ControlPanel = ({
         type="button"
         className="control-panel__carat"
         onClick={() => setIsCollapsed((c) => !c)}
-        title={isCollapsed ? 'Expand controls' : 'Collapse controls'}
-        aria-label={isCollapsed ? 'Expand controls' : 'Collapse controls'}
+        title={isCollapsed ? t('controlPanel.expandControls') : t('controlPanel.collapseControls')}
+        aria-label={isCollapsed ? t('controlPanel.expandControls') : t('controlPanel.collapseControls')}
       >
         <span className="control-panel__carat-icon" aria-hidden>
           {isCollapsed ? '▶' : '▼'}
         </span>
-        {isCollapsed && <span className="control-panel__carat-label">Controls</span>}
+        {isCollapsed && <span className="control-panel__carat-label">{t('controlPanel.controls')}</span>}
       </button>
       <div className="control-panel__content">
       <div className="control-section">
         <div className="control-group">
           <label className="control-label">
             <span className="label-icon">🤖</span>
-            <strong>LLM Provider</strong>
+            <strong>{t('controlPanel.llmProvider')}</strong>
           </label>
           <select
             value={provider}
@@ -232,16 +233,16 @@ const ControlPanel = ({
             disabled={isStreaming}
             className="styled-select"
           >
-            <option value="openai">OpenAI (GPT-4)</option>
-            <option value="anthropic">Anthropic (Claude)</option>
-            <option value="deepseek">DeepSeek</option>
+            <option value="openai">{t('controlPanel.providerOpenai')}</option>
+            <option value="anthropic">{t('controlPanel.providerAnthropic')}</option>
+            <option value="deepseek">{t('controlPanel.providerDeepseek')}</option>
           </select>
         </div>
 
         <div className="control-group">
           <label className="control-label">
             <span className="label-icon">🔢</span>
-            <strong>Number Count</strong>
+            <strong>{t('controlPanel.numberCount')}</strong>
           </label>
           <input
             type="number"
@@ -268,14 +269,14 @@ const ControlPanel = ({
             max="1000"
             disabled={isStreaming || batchMode}
             className="styled-input"
-            title={batchMode ? "Number count is specified in the system prompt when using batch mode" : ""}
+            title={batchMode ? t('controlPanel.numberCountBatchTitle') : ''}
           />
         </div>
 
         <div className="control-group">
           <label className="control-label">
             <span className="label-icon">🔄</span>
-            <strong>Number of Runs</strong>
+            <strong>{t('controlPanel.numberOfRuns')}</strong>
           </label>
           <input
             type="number"
@@ -302,14 +303,14 @@ const ControlPanel = ({
             max="50"
             disabled={isStreaming}
             className="styled-input"
-            title="Number of independent runs to perform"
+            title={t('controlPanel.numberOfRunsTitle')}
           />
         </div>
 
         <div className="control-group request-mode-group">
           <label className="control-label">
             <span className="label-icon">⚡</span>
-            <strong>Request Mode</strong>
+            <strong>{t('controlPanel.requestMode')}</strong>
           </label>
           <div className="radio-group">
             <label className="radio-option">
@@ -323,8 +324,8 @@ const ControlPanel = ({
               />
               <span className="radio-custom"></span>
               <span className="radio-label">
-                <span className="radio-title">One Request Per Number</span>
-                <span className="radio-description">More reliable, slower</span>
+                <span className="radio-title">{t('controlPanel.oneRequestPerNumber')}</span>
+                <span className="radio-description">{t('controlPanel.oneRequestPerNumberDesc')}</span>
               </span>
             </label>
             <label className="radio-option">
@@ -338,8 +339,8 @@ const ControlPanel = ({
               />
               <span className="radio-custom"></span>
               <span className="radio-label">
-                <span className="radio-title">One Request For All</span>
-                <span className="radio-description">Faster, single request</span>
+                <span className="radio-title">{t('controlPanel.oneRequestForAll')}</span>
+                <span className="radio-description">{t('controlPanel.oneRequestForAllDesc')}</span>
               </span>
             </label>
           </div>
@@ -354,10 +355,10 @@ const ControlPanel = ({
                 className="generate-button"
               >
                 <span className="button-icon">{isStreaming ? '⏳' : '🧮'}</span>
-                <span>{isStreaming ? 'Generating...' : 'Generate Random Numbers'}</span>
+                <span>{isStreaming ? t('controlPanel.generating') : t('controlPanel.generateRandomNumbers')}</span>
               </button>
             </div>
-            <span className="generate-or-upload-or">OR</span>
+            <span className="generate-or-upload-or">{t('controlPanel.or')}</span>
             <div className="upload-button-cell">
               <input
                 type="file"
@@ -374,7 +375,7 @@ const ControlPanel = ({
                 style={{ backgroundColor: '#4a90e2' }}
               >
                 <span className="button-icon">{isUploading ? '⏳' : '📁'}</span>
-                <span>{isUploading ? 'Uploading...' : 'Upload CSV File'}</span>
+                <span>{isUploading ? t('controlPanel.uploading') : t('controlPanel.uploadCsvFile')}</span>
               </button>
             </div>
           </div>
@@ -384,11 +385,11 @@ const ControlPanel = ({
             </p>
           )}
           <div className="upload-csv-instructions">
-            <strong>CSV Format Required:</strong>
+            <strong>{t('controlPanel.csvFormatRequired')}</strong>
             <br />
-            Columns must be named: <code>run 1</code>, <code>run 2</code>, <code>run 3</code>, etc.
+            {t('controlPanel.csvColumnsInstruction')}
             <br />
-            Each column should contain numeric values (one per row).
+            {t('controlPanel.csvNumericInstruction')}
             <br />
           </div>
         </div>
@@ -401,10 +402,10 @@ const ControlPanel = ({
             style={{ width: '100%', backgroundColor: '#666' }}
           >
             <span className="button-icon">📊</span>
-            <span>{isStreaming ? 'Loading...' : 'Load Dummy Data for Testing'}</span>
+            <span>{isStreaming ? t('controlPanel.loading') : t('controlPanel.loadDummyData')}</span>
           </button>
           <p style={{ fontSize: '12px', color: '#666', marginTop: '10px', textAlign: 'center' }}>
-            Loads test data from dummy_data.json file. Supports both single array [x,x,x] and multi-run [[x,x,x], [x,x,x]] formats.
+            {t('controlPanel.dummyDataHint')}
           </p>
         </div>
       </div>
@@ -412,11 +413,11 @@ const ControlPanel = ({
       <div className="prompt-section">
         <div className="prompt-editor">
           <label>
-            <strong className="system-prompt-label">System Prompt:</strong>
+            <strong className="system-prompt-label">{t('controlPanel.systemPrompt')}</strong>
             <textarea
               value={systemPrompt || getDefaultPrompt()}
               onChange={(e) => setSystemPrompt(e.target.value)}
-              placeholder="Enter custom system prompt..."
+              placeholder={t('controlPanel.systemPromptPlaceholder')}
               rows={4}
               disabled={isStreaming}
             />
@@ -426,7 +427,7 @@ const ControlPanel = ({
             disabled={isStreaming}
             className="reset-prompt-button"
           >
-            Reset to Default
+            {t('controlPanel.resetToDefault')}
           </button>
         </div>
 
@@ -436,22 +437,22 @@ const ControlPanel = ({
             onClick={() => setShowUserPromptSection(!showUserPromptSection)}
             className="toggle-api-key-button"
           >
-            {showUserPromptSection ? '▼ Hide User Prompt' : '▶ User Prompt (optional)'}
+            {showUserPromptSection ? t('controlPanel.hideUserPrompt') : t('controlPanel.userPromptOptional')}
           </button>
           {showUserPromptSection && (
             <div className="prompt-editor user-prompt-editor">
               <label>
-                <strong className="system-prompt-label">User Prompt:</strong>
+                <strong className="system-prompt-label">{t('controlPanel.userPromptLabel')}</strong>
                 <textarea
                   value={userPrompt}
                   onChange={(e) => setUserPrompt(e.target.value)}
-                  placeholder="Optional. Leave empty to send only the system prompt to the LLM."
+                  placeholder={t('controlPanel.userPromptPlaceholder')}
                   rows={1}
                   disabled={isStreaming}
                 />
               </label>
               <p style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
-                Leave empty to send only the system prompt; no user message is sent.
+                {t('controlPanel.userPromptHint')}
               </p>
             </div>
           )}
@@ -459,17 +460,17 @@ const ControlPanel = ({
 
         <div className="api-key-editor">
           <label>
-            <strong className="system-prompt-label">API Key for selected provider</strong>
+            <strong className="system-prompt-label">{t('controlPanel.apiKeyLabel')}</strong>
           </label>
           <p style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>
-            If set, this overrides the key from the server&apos;s .env. Used for OpenAI, Anthropic, or DeepSeek when generating.
+            {t('controlPanel.apiKeyHint')}
           </p>
           <div className="api-key-input-wrapper">
             <input
               type={showApiKeyValue ? 'text' : 'password'}
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder="sk-... or your provider API key"
+              placeholder={t('controlPanel.apiKeyPlaceholder')}
               disabled={isStreaming}
               className="api-key-input"
               autoComplete="off"
@@ -478,7 +479,7 @@ const ControlPanel = ({
               type="button"
               onClick={() => setShowApiKeyValue(!showApiKeyValue)}
               className="toggle-visibility-button"
-              title={showApiKeyValue ? 'Hide' : 'Show'}
+              title={showApiKeyValue ? t('controlPanel.hide') : t('controlPanel.show')}
               tabIndex={-1}
             >
               {showApiKeyValue ? '🙈' : '👁'}

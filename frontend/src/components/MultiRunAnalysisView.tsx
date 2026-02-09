@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, type ComponentProps } from 'react'
 import { createPortal } from 'react-dom'
+import { t } from '../i18n'
 import {
   LineChart,
   Line,
@@ -70,7 +71,7 @@ function AnchoredScrollableTooltip(props: {
         })}
       </ul>
       <div style={{ marginTop: 6, fontSize: 11, color: '#999' }}>
-        {showPinned ? 'Click chart or elsewhere to close' : 'Scroll if needed · click chart to pin'}
+        {showPinned ? t('multiRun.clickToCloseTooltip') : t('multiRun.scrollPinTooltip')}
       </div>
     </div>
   )
@@ -235,27 +236,27 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
 
   return (
     <div className="stats-section">
-      <h3>Multi-Run Statistical Analysis</h3>
+      <h3>{t('multiRun.multiRunStatisticalAnalysis')}</h3>
       <p style={{ marginBottom: '15px', color: '#666' }}>
-        Analysis across {analysis.num_runs} runs, {analysis.count_per_run} numbers per run
+        {t('multiRun.analysisAcrossRuns', { numRuns: analysis.num_runs, countPerRun: analysis.count_per_run })}
       </p>
 
       <div className="sub-nav-buttons" style={{ marginBottom: '20px' }}>
-        <button onClick={() => setMultiRunPage(1)} className={multiRunPage === 1 ? 'active' : ''}>Test Results</button>
-        <button onClick={() => setMultiRunPage(2)} className={multiRunPage === 2 ? 'active' : ''}>Tables</button>
-        <button onClick={() => setMultiRunPage(3)} className={multiRunPage === 3 ? 'active' : ''}>Charts</button>
-        <button onClick={() => setMultiRunPage(4)} className={multiRunPage === 4 ? 'active' : ''}>Deviation</button>
+        <button onClick={() => setMultiRunPage(1)} className={multiRunPage === 1 ? 'active' : ''}>{t('multiRun.testResults')}</button>
+        <button onClick={() => setMultiRunPage(2)} className={multiRunPage === 2 ? 'active' : ''}>{t('multiRun.tables')}</button>
+        <button onClick={() => setMultiRunPage(3)} className={multiRunPage === 3 ? 'active' : ''}>{t('multiRun.charts')}</button>
+        <button onClick={() => setMultiRunPage(4)} className={multiRunPage === 4 ? 'active' : ''}>{t('multiRun.deviation')}</button>
       </div>
 
       {multiRunPage === 1 && (
         <div className="chart-container">
-          <h4>Test Results</h4>
+          <h4>{t('multiRun.testResults')}</h4>
           <div className="test-results">
-            <div className="test-card"><h4>Kolmogorov-Smirnov Uniformity Test</h4><p className={analysis.test_results.ks_passed_count > 0 ? 'pass' : 'fail'}>{analysis.test_results.ks_uniformity_passed} runs passed (p &gt; 0.05)</p></div>
-            <div className="test-card"><h4>NIST Runs Test</h4><p className={analysis.test_results.runs_test_passed_count > 0 ? 'pass' : 'fail'}>{analysis.test_results.runs_test_passed} runs passed (p &gt; 0.01)</p></div>
-            <div className="test-card"><h4>NIST Binary Matrix Rank Test</h4><p className={analysis.test_results.binary_matrix_rank_test_passed_count > 0 ? 'pass' : 'fail'}>{analysis.test_results.binary_matrix_rank_test_passed} runs passed (p &gt; 0.01)</p></div>
-            <div className="test-card"><h4>NIST Longest Run of Ones Test</h4><p className={analysis.test_results.longest_run_of_ones_test_passed_count > 0 ? 'pass' : 'fail'}>{analysis.test_results.longest_run_of_ones_test_passed} runs passed (p &gt; 0.01)</p></div>
-            <div className="test-card"><h4>NIST Approximate Entropy Test</h4><p className={analysis.test_results.approximate_entropy_test_passed_count > 0 ? 'pass' : 'fail'}>{analysis.test_results.approximate_entropy_test_passed} runs passed (p &gt; 0.01)</p></div>
+            <div className="test-card"><h4>{t('multiRun.ksUniformityTest')}</h4><p className={analysis.test_results.ks_passed_count > 0 ? 'pass' : 'fail'}>{t('multiRun.runsPassedP05', { n: analysis.test_results.ks_uniformity_passed })}</p></div>
+            <div className="test-card"><h4>{t('multiRun.nistRunsTest')}</h4><p className={analysis.test_results.runs_test_passed_count > 0 ? 'pass' : 'fail'}>{t('multiRun.runsPassedP01', { n: analysis.test_results.runs_test_passed })}</p></div>
+            <div className="test-card"><h4>{t('multiRun.nistBinaryMatrixRank')}</h4><p className={analysis.test_results.binary_matrix_rank_test_passed_count > 0 ? 'pass' : 'fail'}>{t('multiRun.runsPassedP01', { n: analysis.test_results.binary_matrix_rank_test_passed })}</p></div>
+            <div className="test-card"><h4>{t('multiRun.nistLongestRunOfOnes')}</h4><p className={analysis.test_results.longest_run_of_ones_test_passed_count > 0 ? 'pass' : 'fail'}>{t('multiRun.runsPassedP01', { n: analysis.test_results.longest_run_of_ones_test_passed })}</p></div>
+            <div className="test-card"><h4>{t('multiRun.nistApproximateEntropy')}</h4><p className={analysis.test_results.approximate_entropy_test_passed_count > 0 ? 'pass' : 'fail'}>{t('multiRun.runsPassedP01', { n: analysis.test_results.approximate_entropy_test_passed })}</p></div>
           </div>
         </div>
       )}
@@ -264,31 +265,31 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
         <>
           {analysis.combined_stream_stats && Object.keys(analysis.combined_stream_stats).length > 0 && (
             <div className="chart-container" style={{ marginBottom: '24px' }}>
-              <h4>Statistics Across All Runs (Combined Stream)</h4>
+              <h4>{t('multiRun.statisticsCombinedStream')}</h4>
               <p style={{ fontSize: '13px', color: '#555', marginBottom: '16px', lineHeight: 1.5 }}>
-                The statistics below are calculated from all numbers across all runs treated as a single stream of data. Each value is computed on the concatenation of every run, so they describe the overall distribution of the full dataset.
+                {t('multiRun.combinedStreamDesc')}
               </p>
               <div className="stats-grid">
-                <div className="stat-card"><div className="stat-label">Mean</div><div className="stat-value">{typeof analysis.combined_stream_stats.mean === 'number' ? analysis.combined_stream_stats.mean.toFixed(4) : 'N/A'}</div></div>
-                <div className="stat-card"><div className="stat-label">Mode</div><div className="stat-value">{typeof analysis.combined_stream_stats.mode === 'number' && !Number.isNaN(analysis.combined_stream_stats.mode) ? analysis.combined_stream_stats.mode.toFixed(4) : 'N/A'}</div></div>
-                <div className="stat-card"><div className="stat-label">Median</div><div className="stat-value">{typeof analysis.combined_stream_stats.median === 'number' ? analysis.combined_stream_stats.median.toFixed(4) : 'N/A'}</div></div>
-                <div className="stat-card"><div className="stat-label">Std Dev</div><div className="stat-value">{typeof analysis.combined_stream_stats.std === 'number' ? analysis.combined_stream_stats.std.toFixed(4) : 'N/A'}</div></div>
-                <div className="stat-card"><div className="stat-label">Variance</div><div className="stat-value">{typeof analysis.combined_stream_stats.variance === 'number' ? analysis.combined_stream_stats.variance.toFixed(4) : 'N/A'}</div></div>
-                <div className="stat-card"><div className="stat-label">Min</div><div className="stat-value">{typeof analysis.combined_stream_stats.min === 'number' ? analysis.combined_stream_stats.min.toFixed(4) : 'N/A'}</div></div>
-                <div className="stat-card"><div className="stat-label">Max</div><div className="stat-value">{typeof analysis.combined_stream_stats.max === 'number' ? analysis.combined_stream_stats.max.toFixed(4) : 'N/A'}</div></div>
-                <div className="stat-card"><div className="stat-label">Q25</div><div className="stat-value">{typeof analysis.combined_stream_stats.q25 === 'number' ? analysis.combined_stream_stats.q25.toFixed(4) : 'N/A'}</div></div>
-                <div className="stat-card"><div className="stat-label">Q50</div><div className="stat-value">{typeof analysis.combined_stream_stats.q50 === 'number' ? analysis.combined_stream_stats.q50.toFixed(4) : 'N/A'}</div></div>
-                <div className="stat-card"><div className="stat-label">Q75</div><div className="stat-value">{typeof analysis.combined_stream_stats.q75 === 'number' ? analysis.combined_stream_stats.q75.toFixed(4) : 'N/A'}</div></div>
-                <div className="stat-card"><div className="stat-label">Skewness</div><div className="stat-value">{typeof analysis.combined_stream_stats.skewness === 'number' ? analysis.combined_stream_stats.skewness.toFixed(4) : 'N/A'}</div></div>
-                <div className="stat-card"><div className="stat-label">Kurtosis</div><div className="stat-value">{typeof analysis.combined_stream_stats.kurtosis === 'number' ? analysis.combined_stream_stats.kurtosis.toFixed(4) : 'N/A'}</div></div>
+                <div className="stat-card"><div className="stat-label">{t('multiRun.mean')}</div><div className="stat-value">{typeof analysis.combined_stream_stats.mean === 'number' ? analysis.combined_stream_stats.mean.toFixed(4) : t('basicStats.na')}</div></div>
+                <div className="stat-card"><div className="stat-label">{t('multiRun.mode')}</div><div className="stat-value">{typeof analysis.combined_stream_stats.mode === 'number' && !Number.isNaN(analysis.combined_stream_stats.mode) ? analysis.combined_stream_stats.mode.toFixed(4) : t('basicStats.na')}</div></div>
+                <div className="stat-card"><div className="stat-label">{t('basicStats.median')}</div><div className="stat-value">{typeof analysis.combined_stream_stats.median === 'number' ? analysis.combined_stream_stats.median.toFixed(4) : t('basicStats.na')}</div></div>
+                <div className="stat-card"><div className="stat-label">{t('multiRun.stdDev')}</div><div className="stat-value">{typeof analysis.combined_stream_stats.std === 'number' ? analysis.combined_stream_stats.std.toFixed(4) : t('basicStats.na')}</div></div>
+                <div className="stat-card"><div className="stat-label">{t('basicStats.variance')}</div><div className="stat-value">{typeof analysis.combined_stream_stats.variance === 'number' ? analysis.combined_stream_stats.variance.toFixed(4) : t('basicStats.na')}</div></div>
+                <div className="stat-card"><div className="stat-label">{t('multiRun.min')}</div><div className="stat-value">{typeof analysis.combined_stream_stats.min === 'number' ? analysis.combined_stream_stats.min.toFixed(4) : t('basicStats.na')}</div></div>
+                <div className="stat-card"><div className="stat-label">{t('multiRun.max')}</div><div className="stat-value">{typeof analysis.combined_stream_stats.max === 'number' ? analysis.combined_stream_stats.max.toFixed(4) : t('basicStats.na')}</div></div>
+                <div className="stat-card"><div className="stat-label">{t('basicStats.q25')}</div><div className="stat-value">{typeof analysis.combined_stream_stats.q25 === 'number' ? analysis.combined_stream_stats.q25.toFixed(4) : t('basicStats.na')}</div></div>
+                <div className="stat-card"><div className="stat-label">Q50</div><div className="stat-value">{typeof analysis.combined_stream_stats.q50 === 'number' ? analysis.combined_stream_stats.q50.toFixed(4) : t('basicStats.na')}</div></div>
+                <div className="stat-card"><div className="stat-label">{t('basicStats.q75')}</div><div className="stat-value">{typeof analysis.combined_stream_stats.q75 === 'number' ? analysis.combined_stream_stats.q75.toFixed(4) : t('basicStats.na')}</div></div>
+                <div className="stat-card"><div className="stat-label">{t('basicStats.skewness')}</div><div className="stat-value">{typeof analysis.combined_stream_stats.skewness === 'number' ? analysis.combined_stream_stats.skewness.toFixed(4) : t('basicStats.na')}</div></div>
+                <div className="stat-card"><div className="stat-label">{t('basicStats.kurtosis')}</div><div className="stat-value">{typeof analysis.combined_stream_stats.kurtosis === 'number' ? analysis.combined_stream_stats.kurtosis.toFixed(4) : t('basicStats.na')}</div></div>
               </div>
             </div>
           )}
           <div className="stats-tables-container">
             <div className="chart-container">
-              <h4>Aggregate Statistics Across Runs</h4>
+              <h4>{t('multiRun.aggregateStatisticsAcrossRuns')}</h4>
               <table className="stats-table">
-                <thead><tr><th>Metric</th><th>Mean Across Runs</th><th>St.Dev Across Runs</th><th>Range</th></tr></thead>
+                <thead><tr><th>{t('multiRun.metric')}</th><th>{t('multiRun.meanAcrossRuns')}</th><th>{t('multiRun.stDevAcrossRuns')}</th><th>{t('multiRun.range')}</th></tr></thead>
                 <tbody>
                   <tr><td><strong>Mean</strong></td><td>{analysis.aggregate_stats.mean?.mean?.toFixed(4) || 'N/A'}</td><td>{analysis.aggregate_stats.mean?.std_dev?.toFixed(4) || 'N/A'}</td><td>{analysis.aggregate_stats.mean?.range?.toFixed(4) || 'N/A'}</td></tr>
                   <tr><td><strong>Mode</strong></td><td>{analysis.aggregate_stats.mode?.mean != null ? analysis.aggregate_stats.mode.mean.toFixed(4) : 'N/A'}</td><td>{analysis.aggregate_stats.mode?.std_dev != null ? analysis.aggregate_stats.mode.std_dev.toFixed(4) : 'N/A'}</td><td>{analysis.aggregate_stats.mode?.range != null ? analysis.aggregate_stats.mode.range.toFixed(4) : 'N/A'}</td></tr>
@@ -300,10 +301,10 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
             </div>
             {analysis.individual_analyses?.length > 0 && (
               <div className="chart-container">
-                <h4>Per-Run Statistics Summary</h4>
+                <h4>{t('multiRun.perRunStatisticsSummary')}</h4>
                 <div className="table-scroll-wrapper table-scroll-wrapper--5-rows" style={{ marginBottom: '30px' }}>
                   <table className="stats-table">
-                    <thead><tr><th>Run</th><th>Mean</th><th>Mode</th><th>Std Dev</th><th>Min</th><th>Max</th><th>Range</th><th>KS Test (p)</th></tr></thead>
+                    <thead><tr><th>{t('multiRun.runCol')}</th><th>{t('multiRun.mean')}</th><th>{t('multiRun.mode')}</th><th>{t('multiRun.stdDev')}</th><th>{t('multiRun.min')}</th><th>{t('multiRun.max')}</th><th>{t('multiRun.range')}</th><th>{t('multiRun.ksTestP')}</th></tr></thead>
                     <tbody>
                       {analysis.individual_analyses.map((runAnalysis: any, idx: number) => (
                         <tr
@@ -313,7 +314,7 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
                           onMouseEnter={(e) => onSelectRun && (e.currentTarget.style.background = '#f0f0f0')}
                           onMouseLeave={(e) => onSelectRun && (e.currentTarget.style.background = '')}
                         >
-                          <td><strong>Run {idx + 1}</strong></td>
+                          <td><strong>{t('multiRun.runN', { n: idx + 1 })}</strong></td>
                           <td>{runAnalysis.basic_stats?.mean?.toFixed(4) || 'N/A'}</td>
                           <td>{runAnalysis.basic_stats?.mode != null && !Number.isNaN(runAnalysis.basic_stats.mode) ? runAnalysis.basic_stats.mode.toFixed(4) : 'N/A'}</td>
                           <td>{runAnalysis.basic_stats?.std?.toFixed(4) || 'N/A'}</td>
@@ -326,16 +327,16 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
                     </tbody>
                   </table>
                 </div>
-                {onSelectRun && <p style={{ fontSize: '12px', color: '#666', marginBottom: '20px', fontStyle: 'italic' }}>Click on a row to view detailed statistics for that run</p>}
+                {onSelectRun && <p style={{ fontSize: '12px', color: '#666', marginBottom: '20px', fontStyle: 'italic' }}>{t('multiRun.clickRowToViewDetail')}</p>}
               </div>
             )}
           </div>
           {analysis.autocorrelation_table && (
             <div className="chart-container">
-              <h4>Autocorrelation Analysis by Run</h4>
+              <h4>{t('multiRun.autocorrelationByRun')}</h4>
               <div className="table-scroll-wrapper table-scroll-wrapper--5-rows">
                 <table className="stats-table">
-                  <thead><tr><th>Run</th><th>Lags with Significant Correlation</th><th>Max |Correlation|</th></tr></thead>
+                  <thead><tr><th>{t('multiRun.runCol')}</th><th>{t('multiRun.lagsSignificantCorrelation')}</th><th>{t('multiRun.maxCorrelation')}</th></tr></thead>
                   <tbody>
                     {analysis.autocorrelation_table.map((row: any) => (
                       <tr key={row.run}>
@@ -357,12 +358,12 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
           {analysis.frequency_histogram?.bins?.length > 0 && (
             <div className="chart-container">
               <div style={{ marginBottom: '20px' }}>
-                <h4 style={{ marginBottom: '15px' }}>Frequency Histogram / KDE Across All Runs</h4>
-                <p style={{ fontSize: '12px', color: '#666', marginBottom: '15px', fontStyle: 'italic' }}>Distribution of number frequencies across all {analysis.num_runs} runs</p>
+                <h4 style={{ marginBottom: '15px' }}>{t('multiRun.frequencyHistogramKde')}</h4>
+                <p style={{ fontSize: '12px', color: '#666', marginBottom: '15px', fontStyle: 'italic' }}>{t('multiRun.distributionAcrossRuns', { n: analysis.num_runs })}</p>
                 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                   {(['histogram', 'kde'] as const).map((view) => (
                     <label key={view} onClick={(e) => { e.stopPropagation(); setFrequencyHistogramView(view) }} style={toggleLabelStyle(frequencyHistogramView === view)} onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.2)'; e.currentTarget.style.transform = 'translateY(-2px)' }} onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)'; e.currentTarget.style.transform = 'translateY(0)' }}>
-                      <span style={{ fontSize: '12px', fontFamily: 'Courier New', color: frequencyHistogramView === view ? 'white' : '#000' }}>{view === 'histogram' ? 'Frequency Histogram' : 'KDE'}</span>
+                      <span style={{ fontSize: '12px', fontFamily: 'Courier New', color: frequencyHistogramView === view ? 'white' : '#000' }}>{view === 'histogram' ? t('multiRun.frequencyHistogram') : t('multiRun.kde')}</span>
                     </label>
                   ))}
                 </div>
@@ -372,8 +373,8 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
                   <BarChart data={valueFrequencyHistogramData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="value" angle={-45} textAnchor="end" height={80} interval={Math.max(0, Math.floor(valueFrequencyHistogramData.length / 30))} />
-                    <YAxis label={{ value: 'Frequency', angle: -90, position: 'insideLeft' }} />
-                    <Tooltip formatter={(value: any) => [value, 'Frequency']} labelFormatter={(label) => `Value: ${label}`} />
+                    <YAxis label={{ value: t('multiRun.frequency'), angle: -90, position: 'insideLeft' }} />
+                    <Tooltip formatter={(value: any) => [value, t('multiRun.frequency')]} labelFormatter={(label) => t('multiRun.value', { label })} />
                     <Bar dataKey="count" fill="#1E90FF" />
                   </BarChart>
                 </ResponsiveContainer>
@@ -383,7 +384,7 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
                   <AreaChart data={allNumbersKdeData.map((d: { x: number; density: number }) => ({ x: d.x, density: d.density }))} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="x" type="number" domain={['dataMin', 'dataMax']} tickFormatter={(v) => typeof v === 'number' ? v.toFixed(3) : String(v)} />
-                    <YAxis label={{ value: 'Density', angle: -90, position: 'insideLeft' }} />
+                    <YAxis label={{ value: t('multiRun.density'), angle: -90, position: 'insideLeft' }} />
                     <Tooltip formatter={(value: any) => [Number(value).toFixed(6), 'Density']} labelFormatter={(label) => `x: ${typeof label === 'number' ? label.toFixed(4) : label}`} />
                     <Area type="monotone" dataKey="density" stroke="#1E90FF" fill="#1E90FF" fillOpacity={0.4} />
                   </AreaChart>
@@ -395,11 +396,11 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
           {analysis.individual_analyses?.length > 0 && (
             <div className="chart-container">
               <div style={{ marginBottom: '20px' }}>
-                <h4 style={{ marginBottom: '15px' }}>Overlaid Visualizations (All Runs)</h4>
+                <h4 style={{ marginBottom: '15px' }}>{t('multiRun.overlaidVisualizations')}</h4>
                 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                   {(['boxplot', 'ecdf', 'qq'] as const).map((view) => (
                     <label key={view} onClick={(e) => { e.stopPropagation(); setOverlaidView(view) }} style={toggleLabelStyle(overlaidView === view)} onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.2)'; e.currentTarget.style.transform = 'translateY(-2px)' }} onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)'; e.currentTarget.style.transform = 'translateY(0)' }}>
-                      <span style={{ fontSize: '12px', fontFamily: 'Courier New', color: overlaidView === view ? 'white' : '#000' }}>{view === 'boxplot' ? 'Box Plots' : view === 'ecdf' ? 'ECDF' : 'Q-Q Plot'}</span>
+                      <span style={{ fontSize: '12px', fontFamily: 'Courier New', color: overlaidView === view ? 'white' : '#000' }}>{view === 'boxplot' ? t('multiRun.boxPlots') : view === 'ecdf' ? t('multiRun.ecdf') : t('multiRun.qqPlot')}</span>
                     </label>
                   ))}
                 </div>
@@ -408,7 +409,7 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
               {overlaidView === 'boxplot' && (
                 <>
                   <OverlaidBoxPlots runs={analysis.individual_analyses.map((runAnalysis: any, idx: number) => ({ min: runAnalysis.basic_stats?.min || 0, q25: runAnalysis.basic_stats?.q25 || 0, median: runAnalysis.basic_stats?.median || 0, q75: runAnalysis.basic_stats?.q75 || 0, max: runAnalysis.basic_stats?.max || 0, runNumber: idx + 1 }))} />
-                  <p style={{ fontSize: '12px', color: '#666', marginTop: '15px', fontStyle: 'italic' }}>Hover over a box plot to see detailed statistics for that run</p>
+                  <p style={{ fontSize: '12px', color: '#666', marginTop: '15px', fontStyle: 'italic' }}>{t('multiRun.hoverBoxPlot')}</p>
                 </>
               )}
 
@@ -438,7 +439,7 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
                 })
                 return (
                   <>
-                    <div ref={ecdfChartRef} onClick={handleEcdfChartClick} style={{ cursor: 'pointer' }} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleEcdfChartClick() } }} aria-label="Click to pin or unpin tooltip">
+                    <div ref={ecdfChartRef} onClick={handleEcdfChartClick} style={{ cursor: 'pointer' }} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleEcdfChartClick() } }} aria-label={t('multiRun.clickToPinUnpin')}>
                       <ResponsiveContainer width="100%" height={400}>
 <LineChart data={unifiedData}>
                         <CartesianGrid strokeDasharray="3 3" />
@@ -462,12 +463,12 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
                         return (
                           <label key={runData.run} onClick={(e) => handleEcdfLegendClick(runData.run, e)} style={{ ...toggleLabelStyle(isSelected), color: isSelected ? 'white' : '#000' }} onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.2)'; e.currentTarget.style.transform = 'translateY(-2px)' }} onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)'; e.currentTarget.style.transform = 'translateY(0)' }}>
                             <div style={{ width: '20px', height: '12px', background: color, border: '1px solid #000' }} />
-                            <span style={{ fontSize: '12px', fontFamily: 'Courier New', color: isSelected ? 'white' : '#000' }}>Run {runData.run}</span>
+                            <span style={{ fontSize: '12px', fontFamily: 'Courier New', color: isSelected ? 'white' : '#000' }}>{t('multiRun.runN', { n: runData.run })}</span>
                           </label>
                         )
                       })}
                     </div>
-                    <p style={{ fontSize: '12px', color: '#666', marginTop: '15px', fontStyle: 'italic' }}>Each line represents the ECDF for one run. For uniform distribution, lines should be close to the diagonal.</p>
+                    <p style={{ fontSize: '12px', color: '#666', marginTop: '15px', fontStyle: 'italic' }}>{t('multiRun.eachLineEcdf')}</p>
                   </>
                 )
               })()}
@@ -510,7 +511,7 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
                 })
                 return (
                   <>
-                    <div ref={qqChartRef} onClick={handleQqChartClick} style={{ cursor: 'pointer' }} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleQqChartClick() } }} aria-label="Click to pin or unpin tooltip">
+                    <div ref={qqChartRef} onClick={handleQqChartClick} style={{ cursor: 'pointer' }} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleQqChartClick() } }} aria-label={t('multiRun.clickToPinUnpin')}>
                       <ResponsiveContainer width="100%" height={400}>
 <LineChart data={unifiedData} margin={{ top: 10, right: 20, left: 10, bottom: 20 }}>
                           <CartesianGrid strokeDasharray="3 3" />
@@ -545,12 +546,12 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
                         return (
                           <label key={run} onClick={(e) => handleQqLegendClick(run, e)} style={toggleLabelStyle(isSelected)} onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.2)'; e.currentTarget.style.transform = 'translateY(-2px)' }} onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)'; e.currentTarget.style.transform = 'translateY(0)' }}>
                             <div style={{ width: '20px', height: '12px', background: color, border: '1px solid #000' }} />
-                            <span style={{ fontSize: '12px', fontFamily: 'Courier New', color: isSelected ? 'white' : '#000' }}>Run {run}</span>
+                            <span style={{ fontSize: '12px', fontFamily: 'Courier New', color: isSelected ? 'white' : '#000' }}>{t('multiRun.runN', { n: run })}</span>
                           </label>
                         )
                       })}
                     </div>
-                    <p style={{ fontSize: '12px', color: '#666', marginTop: '15px', fontStyle: 'italic' }}>Each color represents one run. Points should lie close to the diagonal line for uniform distribution.</p>
+                    <p style={{ fontSize: '12px', color: '#666', marginTop: '15px', fontStyle: 'italic' }}>{t('multiRun.eachColorQq')}</p>
                   </>
                 )
               })()}
@@ -561,27 +562,27 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
 
       {multiRunPage === 4 && analysis.distribution_deviation && (
         <div className="chart-container">
-          <h4>Distribution Deviation Metrics</h4>
+          <h4>{t('multiRun.distributionDeviationMetrics')}</h4>
           <p style={{ fontSize: '12px', color: '#666', marginBottom: '20px', fontStyle: 'italic' }}>
-            ECDF and Q-Q metrics across runs. Each run is normalized to [0, 1] before computing deviations against uniform.
+            {t('multiRun.ecdfQqMetricsDesc')}
           </p>
 
           <div className="stats-tables-container">
             <div className="chart-container">
-              <h5 style={{ marginBottom: '12px' }}>ECDF Deviation (Uniformity)</h5>
+              <h5 style={{ marginBottom: '12px' }}>{t('multiRun.ecdfDeviationUniformity')}</h5>
               <table className="stats-table">
                 <thead>
-                  <tr><th>Metric</th><th>Mean</th><th>St. Dev</th><th>CV</th></tr>
+                  <tr><th>{t('multiRun.metric')}</th><th>{t('multiRun.meanCol')}</th><th>{t('multiRun.stDev')}</th><th>{t('multiRun.cv')}</th></tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td><strong>Max vertical deviation (K-S statistic)</strong></td>
+                    <td><strong>{t('multiRun.maxVerticalDeviation')}</strong></td>
                     <td>{analysis.distribution_deviation.ecdf?.ks_statistic?.mean?.toFixed(4) ?? 'N/A'}</td>
                     <td>{analysis.distribution_deviation.ecdf?.ks_statistic?.std_dev?.toFixed(4) ?? 'N/A'}</td>
                     <td>{analysis.distribution_deviation.ecdf?.ks_statistic?.cv != null ? (analysis.distribution_deviation.ecdf.ks_statistic.cv * 100).toFixed(2) + '%' : 'N/A'}</td>
                   </tr>
                   <tr>
-                    <td><strong>Mean absolute deviation (MAD)</strong></td>
+                    <td><strong>{t('multiRun.meanAbsoluteDeviation')}</strong></td>
                     <td>{analysis.distribution_deviation.ecdf?.mad?.mean?.toFixed(4) ?? 'N/A'}</td>
                     <td>{analysis.distribution_deviation.ecdf?.mad?.std_dev?.toFixed(4) ?? 'N/A'}</td>
                     <td>{analysis.distribution_deviation.ecdf?.mad?.cv != null ? (analysis.distribution_deviation.ecdf.mad.cv * 100).toFixed(2) + '%' : 'N/A'}</td>
@@ -589,18 +590,18 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
                 </tbody>
               </table>
               <p style={{ fontSize: '11px', color: '#888', marginTop: '8px' }}>
-                K-S captures worst-point deviation; MAD captures average deviation across the ECDF.
+                {t('multiRun.ksMadNote')}
               </p>
             </div>
 
             {analysis.distribution_deviation.ecdf?.regional_deviation?.labels?.length > 0 && (
               <div className="chart-container">
-                <h5 style={{ marginBottom: '12px' }}>Regional ECDF Deviation</h5>
+                <h5 style={{ marginBottom: '12px' }}>{t('multiRun.regionalEcdfDeviation')}</h5>
                 <table className="stats-table">
                   <thead>
                     <tr>
-                      <th>Region</th>
-                      <th>Mean deviation</th>
+                      <th>{t('multiRun.region')}</th>
+                      <th>{t('multiRun.meanDeviation')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -616,26 +617,26 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
             )}
 
             <div className="chart-container">
-              <h5 style={{ marginBottom: '12px' }}>Q-Q Plot Deviation (vs diagonal y=x)</h5>
+              <h5 style={{ marginBottom: '12px' }}>{t('multiRun.qqDeviationVsDiagonal')}</h5>
               <table className="stats-table">
                 <thead>
-                  <tr><th>Metric</th><th>Mean</th><th>St. Dev</th></tr>
+                  <tr><th>{t('multiRun.metric')}</th><th>{t('multiRun.meanCol')}</th><th>{t('multiRun.stDev')}</th></tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td><strong>R² (coefficient of determination)</strong></td>
+                    <td><strong>{t('multiRun.rSquared')}</strong></td>
                     <td>{analysis.distribution_deviation.qq?.r_squared?.mean?.toFixed(4) ?? 'N/A'}</td>
                     <td>{analysis.distribution_deviation.qq?.r_squared?.std_dev?.toFixed(4) ?? 'N/A'}</td>
                   </tr>
                   <tr>
-                    <td><strong>MSE from diagonal</strong></td>
+                    <td><strong>{t('multiRun.mseFromDiagonal')}</strong></td>
                     <td>{analysis.distribution_deviation.qq?.mse_from_diagonal?.mean?.toFixed(6) ?? 'N/A'}</td>
                     <td>{analysis.distribution_deviation.qq?.mse_from_diagonal?.std_dev?.toFixed(6) ?? 'N/A'}</td>
                   </tr>
                 </tbody>
               </table>
               <p style={{ fontSize: '11px', color: '#888', marginTop: '8px' }}>
-                R² measures how well points follow the diagonal; higher is better. MSE is average squared distance from y=x.
+                {t('multiRun.r2MseNote')}
               </p>
             </div>
           </div>
