@@ -8,8 +8,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from llm_client import LLMClient
-from stats_analyzer import StatsAnalyzer
-from latex_pdf_generator import LatexGenerator
+from stats import StatsAnalyzer
+from reporting import LatexGenerator
 
 # Configure logging
 logging.basicConfig(

@@ -56,6 +56,8 @@ def generate_csv(runs_data: List[List[float]], provider: str) -> Response:
             media_type="text/csv",
             headers={"Content-Disposition": f"attachment; filename={filename}"}
         )
+    except HTTPException:
+        raise
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON in runs parameter")
     except Exception as e:

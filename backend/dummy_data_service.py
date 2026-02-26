@@ -49,6 +49,8 @@ def get_dummy_data_service(dummy_data_filename: str) -> dict:
                 }
         else:
             raise HTTPException(status_code=400, detail="Invalid dummy data format")
+    except HTTPException:
+        raise
     except json.JSONDecodeError as e:
         logger.error(f"Error parsing dummy data file: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error parsing dummy data: {str(e)}")
