@@ -100,6 +100,15 @@ class TestBinaryMatrixRankTest:
         assert "full_rank_count" in out
         assert "passed" in out
         assert out["num_matrices"] >= 1
+    
+    def test_all_zero_matrix_rank_counts(self):
+        """Correctness: a 32x32 all-zero matrix has rank 0 (counts should reflect that)."""
+        seq = [0] * (32 * 32)  # exactly one matrix
+        out = nist_mod.binary_matrix_rank_test(seq, matrix_size=32)
+        assert out["num_matrices"] == 1
+        assert out["full_rank_count"] == 0
+        assert out["rank_minus_1_count"] == 0
+        assert out["rank_0_count"] == 1
 
 
 class TestLongestRunOfOnesTest:
@@ -124,6 +133,14 @@ class TestLongestRunOfOnesTest:
         assert "num_blocks" in out
         assert "run_counts" in out
         assert out["num_blocks"] >= 1
+    
+    def test_all_zero_blocks_bucket_into_leq4(self):
+        """Correctness: if there are no ones, max_run=0 so each block should count toward the <=4 bucket."""
+        seq = [0] * (128 * 3)  # 3 blocks
+        out = nist_mod.longest_run_of_ones_test(seq, block_size=128)
+        assert out["num_blocks"] == 3
+        # run_counts keys are strings in output
+        assert out["run_counts"]["4"] == 3
 
 
 class TestApproximateEntropyTest:

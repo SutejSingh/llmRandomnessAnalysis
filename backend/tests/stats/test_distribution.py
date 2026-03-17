@@ -195,6 +195,10 @@ class TestDistributionAnalysis:
         assert "qq_plot" in out
         assert "sample" in out["qq_plot"]
         assert "theoretical" in out["qq_plot"]
+        # Correctness: histogram counts should sum to N
+        assert sum(out["histogram"]["counts"]) == len(arr)
+        # Correctness: KDE values should be finite numbers
+        assert all(np.isfinite(y) for y in out["kde"]["y"])
 
     def test_two_values(self):
         arr = np.array([0.25, 0.75])
@@ -203,6 +207,7 @@ class TestDistributionAnalysis:
         assert "histogram" in out
         assert len(out["kde"]["x"]) >= 1
         assert len(out["kde"]["y"]) >= 1
+        assert sum(out["histogram"]["counts"]) == len(arr)
 
     def test_small_array_has_structure(self):
         arr = np.array([0.2, 0.5, 0.5, 0.8])
@@ -210,6 +215,7 @@ class TestDistributionAnalysis:
         assert "is_uniform" in out
         assert "histogram" in out
         assert "kde" in out
+        assert sum(out["histogram"]["counts"]) == len(arr)
 
     def test_distribution_analysis_uniform_0_05_1_correctness(self):
         """Single-run: [0, 0.5, 1.0] -> is_uniform has ks_stat/ks_p, histogram/qq_plot present."""
@@ -223,6 +229,8 @@ class TestDistributionAnalysis:
         assert len(out["qq_plot"]["theoretical"]) == len(out["qq_plot"]["sample"])
         assert len(out["kde"]["x"]) >= 1
         assert len(out["kde"]["y"]) == len(out["kde"]["x"])
+        assert sum(out["histogram"]["counts"]) == len(arr)
+        assert all(np.isfinite(y) for y in out["kde"]["y"])
 
     def test_distribution_analysis_integer_input_supported(self):
         """Integer array input should be accepted by distribution_analysis (kde/hist/qq still produced)."""
@@ -233,3 +241,11 @@ class TestDistributionAnalysis:
         assert "histogram" in out and "counts" in out["histogram"] and "edges" in out["histogram"]
         assert "kde" in out and len(out["kde"]["x"]) >= 1 and len(out["kde"]["x"]) == len(out["kde"]["y"])
         assert "qq_plot" in out and len(out["qq_plot"]["sample"]) == len(out["qq_plot"]["theoretical"])
+        assert sum(out["histogram"]["counts"]) == len(arr)
+        assert all(np.isfinite(y) for y in out["kde"]["y"])
+
+    def test_distribution_analysis_constant_input_raises_kde_error(self):
+        """Current behavior: gaussian_kde fails on constant data; test documents this edge case."""
+        arr = np.array([1.0] * 50)
+        with pytest.raises(Exception):
+            distribution_mod.distribution_analysis(arr)
