@@ -38,10 +38,14 @@ const DistributionSection = ({ analysis, view, onViewChange }: DistributionSecti
         <div className="chart-container">
           <h4>{t('distributionSection.kernelDensityEstimate')}</h4>
           <ResponsiveContainer width="100%" height={250}>
-            <AreaChart data={kdeData}>
+            <AreaChart data={kdeData} margin={{ top: 10, right: 20, left: 60, bottom: 40 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="x" tickFormatter={(value) => typeof value === 'number' ? value.toFixed(4) : value} />
-              <YAxis />
+              <XAxis
+                dataKey="x"
+                tickFormatter={(value) => typeof value === 'number' ? value.toFixed(4) : value}
+                label={{ value: 'Value', position: 'bottom', offset: 20 }}
+              />
+              <YAxis label={{ value: 'Density', angle: -90, position: 'left', offset: 40 }} />
               <Tooltip />
               <Area type="monotone" dataKey="y" stroke="#000" fill="#000" fillOpacity={0.3} />
             </AreaChart>
@@ -53,10 +57,19 @@ const DistributionSection = ({ analysis, view, onViewChange }: DistributionSecti
         <div className="chart-container">
           <h4>{t('distributionSection.qqPlotUniform')}</h4>
           <ResponsiveContainer width="100%" height={250}>
-            <ScatterChart data={qqData}>
+            <ScatterChart data={qqData} margin={{ top: 10, right: 20, left: 70, bottom: 40 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="theoretical" name={t('distributionSection.theoretical')} tickFormatter={(value) => typeof value === 'number' ? value.toFixed(4) : value} />
-              <YAxis dataKey="sample" name={t('distributionSection.sample')} />
+              <XAxis
+                dataKey="theoretical"
+                name={t('distributionSection.theoretical')}
+                tickFormatter={(value) => typeof value === 'number' ? value.toFixed(4) : value}
+                label={{ value: 'Theoretical quantile (Uniform)', position: 'bottom', offset: 20 }}
+              />
+              <YAxis
+                dataKey="sample"
+                name={t('distributionSection.sample')}
+                label={{ value: 'Sample quantile', angle: -90, position: 'left', offset: 45 }}
+              />
               <Tooltip cursor={{ strokeDasharray: '3 3' }} />
               <Scatter name="Q-Q" dataKey="sample" fill="#000" />
             </ScatterChart>

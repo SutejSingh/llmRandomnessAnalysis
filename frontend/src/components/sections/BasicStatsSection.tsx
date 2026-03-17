@@ -47,10 +47,17 @@ const BasicStatsSection = ({ analysis, view, onViewChange }: BasicStatsSectionPr
         <div className="chart-container">
           <h4>{t('basicStats.histogramTitle')}</h4>
           <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={histogramData}>
+            <BarChart data={histogramData} margin={{ top: 10, right: 20, left: 60, bottom: 40 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="bin" angle={-45} textAnchor="end" height={80} tickFormatter={(value) => typeof value === 'number' ? value.toFixed(4) : value} />
-              <YAxis />
+              <XAxis
+                dataKey="bin"
+                angle={-45}
+                textAnchor="end"
+                height={80}
+                tickFormatter={(value) => typeof value === 'number' ? value.toFixed(4) : value}
+                label={{ value: 'Value (bin start)', position: 'bottom', offset: 20 }}
+              />
+              <YAxis label={{ value: 'Frequency', angle: -90, position: 'left', offset: 40 }} />
               <Tooltip />
               <Bar dataKey="count" fill="#000" />
             </BarChart>

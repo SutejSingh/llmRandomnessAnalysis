@@ -370,10 +370,21 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
               </div>
               {frequencyHistogramView === 'histogram' && valueFrequencyHistogramData.length > 0 && (
                 <ResponsiveContainer width="100%" height={400}>
-                  <BarChart data={valueFrequencyHistogramData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                  <BarChart data={valueFrequencyHistogramData} margin={{ top: 20, right: 30, left: 60, bottom: 60 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="value" angle={-45} textAnchor="end" height={80} interval={Math.max(0, Math.floor(valueFrequencyHistogramData.length / 30))} />
-                    <YAxis label={{ value: t('multiRun.frequency'), angle: -90, position: 'insideLeft' }} />
+                    <XAxis
+                      dataKey="value"
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                      interval={Math.max(0, Math.floor(valueFrequencyHistogramData.length / 30))}
+                      label={{ value: 'Value', position: 'bottom', offset: 20 }}
+                      tickFormatter={(v) => {
+                        const n = Number(v)
+                        return Number.isFinite(n) ? n.toFixed(4) : String(v)
+                      }}
+                    />
+                    <YAxis label={{ value: t('multiRun.frequency'), angle: -90, position: 'left', offset: 40 }} />
                     <Tooltip formatter={(value: any) => [value, t('multiRun.frequency')]} labelFormatter={(label) => t('multiRun.value', { label })} />
                     <Bar dataKey="count" fill="#1E90FF" />
                   </BarChart>
@@ -381,9 +392,15 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
               )}
               {frequencyHistogramView === 'kde' && allNumbersKdeData.length > 0 && (
                 <ResponsiveContainer width="100%" height={400}>
-                  <AreaChart data={allNumbersKdeData.map((d: { x: number; density: number }) => ({ x: d.x, density: d.density }))} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                  <AreaChart data={allNumbersKdeData.map((d: { x: number; density: number }) => ({ x: d.x, density: d.density }))} margin={{ top: 20, right: 30, left: 60, bottom: 60 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="x" type="number" domain={['dataMin', 'dataMax']} tickFormatter={(v) => typeof v === 'number' ? v.toFixed(3) : String(v)} />
+                    <XAxis
+                      dataKey="x"
+                      type="number"
+                      domain={['dataMin', 'dataMax']}
+                      tickFormatter={(v) => typeof v === 'number' ? v.toFixed(3) : String(v)}
+                      label={{ value: 'Value', position: 'insideBottom', offset: -5 }}
+                    />
                     <YAxis label={{ value: t('multiRun.density'), angle: -90, position: 'insideLeft' }} />
                     <Tooltip formatter={(value: any) => [Number(value).toFixed(6), 'Density']} labelFormatter={(label) => `x: ${typeof label === 'number' ? label.toFixed(4) : label}`} />
                     <Area type="monotone" dataKey="density" stroke="#1E90FF" fill="#1E90FF" fillOpacity={0.4} />
@@ -441,10 +458,14 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
                   <>
                     <div ref={ecdfChartRef} onClick={handleEcdfChartClick} style={{ cursor: 'pointer' }} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleEcdfChartClick() } }} aria-label={t('multiRun.clickToPinUnpin')}>
                       <ResponsiveContainer width="100%" height={400}>
-<LineChart data={unifiedData}>
+<LineChart data={unifiedData} margin={{ top: 10, right: 20, left: 60, bottom: 40 }}>
                         <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="x" tickFormatter={(value) => typeof value === 'number' ? value.toFixed(4) : value} />
-                        <YAxis />
+                        <XAxis
+                          dataKey="x"
+                          tickFormatter={(value) => typeof value === 'number' ? value.toFixed(4) : value}
+                          label={{ value: 'Value', position: 'bottom', offset: 20 }}
+                        />
+                        <YAxis label={{ value: 'Cumulative probability', angle: -90, position: 'insideLeft', offset: -10 }} />
                         <Tooltip content={(p: unknown) => <AnchoredScrollableTooltip {...(p as ComponentProps<typeof AnchoredScrollableTooltip>)} pinned={ecdfPinned} onHover={(payload, label) => { lastEcdfHoverRef.current = { payload, label } }} labelFormatter={(label) => `x: ${typeof label === 'number' ? label.toFixed(4) : label}`} />} />
                           {ecdfPinned?.label != null && <ReferenceLine x={Number(ecdfPinned.label)} stroke="#666" strokeDasharray="4 4" strokeWidth={1.5} />}
                           {(ecdfSelectedRun != null ? [...analysis.ecdf_all_runs].sort((a: any, b: any) => (a.run === ecdfSelectedRun ? 1 : 0) - (b.run === ecdfSelectedRun ? 1 : 0)) : analysis.ecdf_all_runs).map((runData: any, idx: number) => {
@@ -513,10 +534,21 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
                   <>
                     <div ref={qqChartRef} onClick={handleQqChartClick} style={{ cursor: 'pointer' }} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleQqChartClick() } }} aria-label={t('multiRun.clickToPinUnpin')}>
                       <ResponsiveContainer width="100%" height={400}>
-<LineChart data={unifiedData} margin={{ top: 10, right: 20, left: 10, bottom: 20 }}>
+<LineChart data={unifiedData} margin={{ top: 10, right: 20, left: 70, bottom: 40 }}>
                           <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="theoretical" name="Theoretical" type="number" tickFormatter={(v) => typeof v === 'number' ? v.toFixed(4) : String(v)} />
-                          <YAxis name="Sample" type="number" tickFormatter={(v) => typeof v === 'number' ? v.toFixed(4) : String(v)} />
+                        <XAxis
+                          dataKey="theoretical"
+                          name="Theoretical"
+                          type="number"
+                          tickFormatter={(v) => typeof v === 'number' ? v.toFixed(4) : String(v)}
+                          label={{ value: 'Theoretical quantile (Uniform)', position: 'bottom', offset: 20 }}
+                        />
+                          <YAxis
+                            name="Sample"
+                            type="number"
+                            tickFormatter={(v) => typeof v === 'number' ? v.toFixed(4) : String(v)}
+                            label={{ value: 'Sample quantile', angle: -90, position: 'insideLeft', offset: -10 }}
+                          />
                           <Tooltip
                             content={(p: unknown) => (
                               <AnchoredScrollableTooltip

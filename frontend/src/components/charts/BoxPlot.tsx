@@ -37,6 +37,10 @@ const BoxPlot = ({ min, q25, median, q75, max }: BoxPlotProps) => {
   return (
     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 0' }}>
       <svg width={width} height={height} style={{ border: '1px solid #e0e0e0', borderRadius: '6px', background: 'white' }}>
+        {/* Axis labels */}
+        <text x={width / 2} y={height - 10} textAnchor="middle" fontSize="12" fill="#333" fontFamily="system-ui">Value</text>
+        <text x={18} y={height / 2} textAnchor="middle" fontSize="12" fill="#333" fontFamily="system-ui" transform={`rotate(-90 18 ${height / 2})`}>Statistic</text>
+
         <line x1={padding} y1={whiskerY} x2={width - padding} y2={whiskerY} stroke="#000" strokeWidth="2" />
         <line x1={xMin} y1={whiskerY - 10} x2={xMin} y2={whiskerY + 10} stroke="#000" strokeWidth="2" />
         <line x1={xMin} y1={whiskerY} x2={xQ25} y2={whiskerY} stroke="#000" strokeWidth="1" strokeDasharray="3,3" />

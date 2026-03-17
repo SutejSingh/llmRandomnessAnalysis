@@ -57,10 +57,14 @@ const SpectralSection = ({ analysis, view, onViewChange, chartHeight = 250 }: Sp
         <div className="chart-container">
           <h4>{t('spectralSection.fftMagnitudeTitle')}</h4>
           <ResponsiveContainer width="100%" height={chartHeight}>
-            <LineChart data={spectralData}>
+            <LineChart data={spectralData} margin={{ top: 10, right: 20, left: 60, bottom: 40 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="frequency" tickFormatter={(value) => typeof value === 'number' ? value.toFixed(4) : value} />
-              <YAxis />
+              <XAxis
+                dataKey="frequency"
+                tickFormatter={(value) => typeof value === 'number' ? value.toFixed(4) : value}
+                label={{ value: 'Frequency (cycles/sample)', position: 'bottom', offset: 20 }}
+              />
+              <YAxis label={{ value: 'Magnitude', angle: -90, position: 'left', offset: 40 }} />
               <Tooltip />
               <Line type="monotone" dataKey="magnitude" stroke="#000" strokeWidth={2} dot={false} />
             </LineChart>
@@ -72,10 +76,14 @@ const SpectralSection = ({ analysis, view, onViewChange, chartHeight = 250 }: Sp
         <div className="chart-container">
           <h4>{t('spectralSection.powerSpectrumTitle')}</h4>
           <ResponsiveContainer width="100%" height={chartHeight}>
-            <LineChart data={spectralData}>
+            <LineChart data={spectralData} margin={{ top: 10, right: 20, left: 60, bottom: 40 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="frequency" tickFormatter={(value) => typeof value === 'number' ? value.toFixed(4) : value} />
-              <YAxis />
+              <XAxis
+                dataKey="frequency"
+                tickFormatter={(value) => typeof value === 'number' ? value.toFixed(4) : value}
+                label={{ value: 'Frequency (cycles/sample)', position: 'bottom', offset: 20 }}
+              />
+              <YAxis label={{ value: 'Power', angle: -90, position: 'left', offset: 40 }} />
               <Tooltip />
               <Line type="monotone" dataKey="power" stroke="#666" strokeWidth={2} dot={false} />
             </LineChart>
