@@ -14,3 +14,5 @@ httpx>=0.25.0
 openpyxl==3.1.2
 matplotlib==3.8.2
 PyLaTeX==1.4.1
+pytest==7.4.3
+pytest-asyncio==0.21.1

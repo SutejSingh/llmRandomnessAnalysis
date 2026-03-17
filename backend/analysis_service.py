@@ -7,7 +7,7 @@ from typing import Dict, Any
 from fastapi import HTTPException, Request
 
 from models import NumberData, MultiRunData
-from stats_analyzer import StatsAnalyzer
+from stats import StatsAnalyzer
 
 logger = logging.getLogger(__name__)
 

@@ -10,7 +10,7 @@ from datetime import datetime
 from fastapi import HTTPException
 from fastapi.responses import Response
 
-from latex_pdf_generator import LatexGenerator
+from reporting import LatexGenerator
 
 logger = logging.getLogger(__name__)
 
