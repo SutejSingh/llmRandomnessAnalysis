@@ -162,3 +162,18 @@ class TestNistTests:
         out = nist_mod.nist_tests(arr)
         assert out["runs_test"].get("error") or "p_value" in out["runs_test"]
         assert out["binary_matrix_rank_test"].get("error") or "p_value" in out["binary_matrix_rank_test"]
+
+    def test_nist_tests_correctness_single_run_structure(self):
+        """Single-run: nist_tests returns all test keys; runs_test has runs/ones/zeros when no error."""
+        arr = np.random.uniform(0, 1, 500)  # enough for some NIST tests
+        out = nist_mod.nist_tests(arr)
+        assert "runs_test" in out
+        assert "binary_matrix_rank_test" in out
+        assert "longest_run_of_ones_test" in out
+        assert "approximate_entropy_test" in out
+        assert "binary_sequence_length" in out
+        if "error" not in out["runs_test"]:
+            assert "runs" in out["runs_test"]
+            assert "ones" in out["runs_test"]
+            assert "zeros" in out["runs_test"]
+            assert out["runs_test"]["ones"] + out["runs_test"]["zeros"] == out["binary_sequence_length"]

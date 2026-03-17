@@ -68,6 +68,14 @@ class TestStationarityAnalysis:
         assert "rolling_mean" in out
         assert "chunks" in out
 
+    def test_stationarity_chunk_means_increasing_for_trend(self):
+        """Single-run: strictly increasing sequence -> chunk means should increase."""
+        arr = np.arange(100, dtype=float)
+        out = stationarity_mod.stationarity_analysis(arr)
+        chunk_means = [c["mean"] for c in out["chunks"]]
+        assert len(chunk_means) == 4
+        assert chunk_means[0] < chunk_means[1] < chunk_means[2] < chunk_means[3]
+
 
 # ----- independence_analysis -----
 class TestIndependenceAnalysis:
@@ -100,6 +108,12 @@ class TestIndependenceAnalysis:
         out = independence_mod.independence_analysis(arr)
         assert "autocorrelation" in out
         assert "lag1_scatter" in out
+
+    def test_independence_autocorr_lag1_deterministic(self):
+        """Single-run: [1,2,3,4,5] -> lag-1 autocorrelation is 1.0 (perfect linear)."""
+        arr = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+        out = independence_mod.independence_analysis(arr)
+        assert out["autocorrelation"]["values"][0] == pytest.approx(1.0, rel=1e-5)
 
 
 # ----- range_behavior -----
@@ -140,3 +154,14 @@ class TestRangeBehavior:
         assert out["boundaries"]["near_max_count"] == 1
         assert out["boundaries"]["near_min_pct"] == 100.0
         assert out["boundaries"]["near_max_pct"] == 100.0
+
+    def test_range_behavior_correctness_0_05_1(self):
+        """Single-run: [0, 0.5, 1.0] -> boundaries min=0 max=1, ecdf ends at 1."""
+        arr = np.array([0.0, 0.5, 1.0])
+        out = range_behavior_mod.range_behavior(arr)
+        assert out["boundaries"]["min"] == 0.0
+        assert out["boundaries"]["max"] == 1.0
+        assert len(out["ecdf"]["x"]) == len(out["ecdf"]["y"])
+        assert out["ecdf"]["y"][-1] == pytest.approx(1.0, rel=1e-5)
+        assert len(out["edge_histogram"]["counts"]) == 20
+        assert len(out["edge_histogram"]["edges"]) == 21

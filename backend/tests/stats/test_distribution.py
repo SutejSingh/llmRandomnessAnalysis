@@ -210,3 +210,26 @@ class TestDistributionAnalysis:
         assert "is_uniform" in out
         assert "histogram" in out
         assert "kde" in out
+
+    def test_distribution_analysis_uniform_0_05_1_correctness(self):
+        """Single-run: [0, 0.5, 1.0] -> is_uniform has ks_stat/ks_p, histogram/qq_plot present."""
+        arr = np.array([0.0, 0.5, 1.0])
+        out = distribution_mod.distribution_analysis(arr)
+        assert out["is_uniform"]["ks_stat"] >= 0
+        assert 0 <= out["is_uniform"]["ks_p"] <= 1
+        assert len(out["histogram"]["counts"]) >= 1
+        assert len(out["histogram"]["edges"]) >= 2
+        assert len(out["qq_plot"]["sample"]) >= 1
+        assert len(out["qq_plot"]["theoretical"]) == len(out["qq_plot"]["sample"])
+        assert len(out["kde"]["x"]) >= 1
+        assert len(out["kde"]["y"]) == len(out["kde"]["x"])
+
+    def test_distribution_analysis_integer_input_supported(self):
+        """Integer array input should be accepted by distribution_analysis (kde/hist/qq still produced)."""
+        arr = np.array([1, 2, 3, 4, 5, 6], dtype=int)
+        out = distribution_mod.distribution_analysis(arr)
+        assert "is_uniform" in out
+        assert 0 <= out["is_uniform"]["ks_p"] <= 1
+        assert "histogram" in out and "counts" in out["histogram"] and "edges" in out["histogram"]
+        assert "kde" in out and len(out["kde"]["x"]) >= 1 and len(out["kde"]["x"]) == len(out["kde"]["y"])
+        assert "qq_plot" in out and len(out["qq_plot"]["sample"]) == len(out["qq_plot"]["theoretical"])
