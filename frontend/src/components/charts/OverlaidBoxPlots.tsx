@@ -78,6 +78,10 @@ const OverlaidBoxPlots = ({ runs }: OverlaidBoxPlotsProps) => {
         onMouseMove={handleMouseMove}
         onMouseLeave={() => { setHoveredRun(null); setTooltipPos(null) }}
       >
+        {/* Axis labels */}
+        <text x={width / 2} y={height - 10} textAnchor="middle" fontSize="12" fill="#333" fontFamily="system-ui">Value</text>
+        <text x={18} y={height / 2} textAnchor="middle" fontSize="12" fill="#333" fontFamily="system-ui" transform={`rotate(-90 18 ${height / 2})`}>Statistic</text>
+
         <line x1={padding} y1={whiskerY} x2={width - padding} y2={whiskerY} stroke="#000" strokeWidth="2" />
         {orderedRuns.map((run) => {
           const idx = runs.findIndex(r => r.runNumber === run.runNumber)

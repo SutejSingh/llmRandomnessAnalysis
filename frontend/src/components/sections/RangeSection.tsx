@@ -36,10 +36,14 @@ const RangeSection = ({ analysis, view, onViewChange }: RangeSectionProps) => {
         <div className="chart-container">
           <h4>{t('rangeSection.ecdfTitle')}</h4>
           <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={ecdfData}>
+            <LineChart data={ecdfData} margin={{ top: 10, right: 20, left: 60, bottom: 40 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="x" tickFormatter={(value) => typeof value === 'number' ? value.toFixed(4) : value} />
-              <YAxis />
+              <XAxis
+                dataKey="x"
+                tickFormatter={(value) => typeof value === 'number' ? value.toFixed(4) : value}
+                label={{ value: 'Value', position: 'bottom', offset: 20 }}
+              />
+              <YAxis label={{ value: 'Cumulative probability', angle: -90, position: 'left', offset: 45 }} />
               <Tooltip />
               <Line type="monotone" dataKey="y" stroke="#000" strokeWidth={2} dot={false} />
             </LineChart>

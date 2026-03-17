@@ -29,11 +29,21 @@ const StationaritySection = ({ analysis, view, onViewChange, chartHeight = 250 }
         <div className="chart-container">
           <h4>{t('stationaritySection.rollingMeanStd')}</h4>
           <ResponsiveContainer width="100%" height={chartHeight}>
-            <LineChart data={rollingData}>
+            <LineChart data={rollingData} margin={{ top: 10, right: 60, left: 60, bottom: 40 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="index" tickFormatter={(value) => typeof value === 'number' ? value.toFixed(4) : value} />
-              <YAxis yAxisId="left" />
-              <YAxis yAxisId="right" orientation="right" />
+              <XAxis
+                dataKey="index"
+                tickFormatter={(value) => typeof value === 'number' ? value.toFixed(4) : value}
+                label={{ value: 'Index', position: 'bottom', offset: 20 }}
+              />
+              <YAxis yAxisId="left" label={{ value: 'Value', angle: -90, position: 'left', offset: 40 }} />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                tick={false}
+                axisLine={false}
+                label={undefined}
+              />
               <Tooltip />
               <Legend />
               <Line yAxisId="left" type="monotone" dataKey="mean" stroke="#000" strokeWidth={2} name={t('stationaritySection.rollingMean')} />

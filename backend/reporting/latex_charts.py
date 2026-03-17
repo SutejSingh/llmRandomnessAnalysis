@@ -193,8 +193,8 @@ def generate_lag1_scatter_chart(lag1_data: Dict[str, Any], run_num: int, temp_di
     step = max(1, len(lag1_x) // 2000) if len(lag1_x) > 2000 else 1
     fig, ax = plt.subplots(figsize=(10, 10))
     ax.scatter(lag1_x[::step], lag1_y[::step], alpha=0.3, s=10, color='steelblue', edgecolors='none')
-    ax.set_xlabel('X_n')
-    ax.set_ylabel('X_{n+1}')
+    ax.set_xlabel(r'$X_n$')
+    ax.set_ylabel(r'$X_{n+1}$')
     ax.set_title('Lag-1 Scatter Plot')
     ax.grid(True, alpha=0.3)
     filename = f"lag1_run{run_num}.png"
@@ -260,7 +260,7 @@ def generate_fft_chart(spec_data: Dict[str, Any], run_num: int, temp_dir: str) -
     step = max(1, len(freqs) // 2000) if len(freqs) > 2000 else 1
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.plot(freqs[::step], magnitudes[::step], linewidth=1, color='steelblue')
-    ax.set_xlabel('Frequency')
+    ax.set_xlabel('Frequency (cycles/sample)')
     ax.set_ylabel('Magnitude')
     ax.set_title('FFT Magnitude Spectrum')
     ax.grid(True, alpha=0.3)
@@ -280,7 +280,7 @@ def generate_power_spectrum_chart(spec_data: Dict[str, Any], run_num: int, temp_
     step = max(1, len(freqs) // 2000) if len(freqs) > 2000 else 1
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.plot(freqs[::step], powers[::step], linewidth=1, color='darkred')
-    ax.set_xlabel('Frequency')
+    ax.set_xlabel('Frequency (cycles/sample)')
     ax.set_ylabel('Power')
     ax.set_title('Power Spectrum')
     ax.grid(True, alpha=0.3)

@@ -28,10 +28,14 @@ const IndependenceSection = ({ analysis, view, onViewChange, chartHeight = 250 }
         <div className="chart-container">
           <h4>{t('independenceSection.timeSeriesTitle')}</h4>
           <ResponsiveContainer width="100%" height={chartHeight}>
-            <LineChart data={timeSeriesData}>
+            <LineChart data={timeSeriesData} margin={{ top: 10, right: 20, left: 60, bottom: 40 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="index" tickFormatter={(value) => typeof value === 'number' ? value.toFixed(4) : value} />
-              <YAxis />
+              <XAxis
+                dataKey="index"
+                tickFormatter={(value) => typeof value === 'number' ? value.toFixed(4) : value}
+                label={{ value: 'Index', position: 'bottom', offset: 20 }}
+              />
+              <YAxis label={{ value: 'Value', angle: -90, position: 'left', offset: 40 }} />
               <Tooltip />
               <Line type="monotone" dataKey="value" stroke="#000" strokeWidth={1} dot={false} />
             </LineChart>
@@ -43,10 +47,14 @@ const IndependenceSection = ({ analysis, view, onViewChange, chartHeight = 250 }
         <div className="chart-container">
           <h4>{t('independenceSection.acfTitle')}</h4>
           <ResponsiveContainer width="100%" height={chartHeight}>
-            <BarChart data={acfData}>
+            <BarChart data={acfData} margin={{ top: 10, right: 20, left: 60, bottom: 40 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="lag" tickFormatter={(value) => typeof value === 'number' ? value.toFixed(4) : value} />
-              <YAxis domain={[-1, 1]} />
+              <XAxis
+                dataKey="lag"
+                tickFormatter={(value) => typeof value === 'number' ? value.toFixed(4) : value}
+                label={{ value: 'Lag', position: 'bottom', offset: 20 }}
+              />
+              <YAxis domain={[-1, 1]} label={{ value: 'Correlation', angle: -90, position: 'left', offset: 40 }} />
               <Tooltip />
               <Bar dataKey="correlation" fill="#000" />
             </BarChart>
@@ -59,10 +67,15 @@ const IndependenceSection = ({ analysis, view, onViewChange, chartHeight = 250 }
         <div className="chart-container">
           <h4>{t('independenceSection.lag1ScatterTitle')}</h4>
           <ResponsiveContainer width="100%" height={chartHeight}>
-            <ScatterChart data={lag1Data}>
+            <ScatterChart data={lag1Data} margin={{ top: 10, right: 20, left: 70, bottom: 40 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="x" name="x_n" tickFormatter={(value) => typeof value === 'number' ? value.toFixed(4) : value} />
-              <YAxis dataKey="y" name="x_{n+1}" />
+              <XAxis
+                dataKey="x"
+                name="x_n"
+                tickFormatter={(value) => typeof value === 'number' ? value.toFixed(4) : value}
+                label={{ value: 'Xₙ', position: 'bottom', offset: 20 }}
+              />
+              <YAxis dataKey="y" name="x_{n+1}" label={{ value: 'Xₙ₊₁', angle: -90, position: 'left', offset: 45 }} />
               <Tooltip cursor={{ strokeDasharray: '3 3' }} />
               <Scatter name="Lag-1" dataKey="y" fill="#000" />
             </ScatterChart>
