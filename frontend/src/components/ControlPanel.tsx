@@ -24,7 +24,6 @@ interface ControlPanelProps {
   onGenerate: () => void
   isStreaming: boolean
   numbers: number[]
-  onDummyData?: () => void
   onCsvUpload?: (runs: number[][], numRuns: number, analysis: any) => void
   analysisReady?: boolean
 }
@@ -47,7 +46,6 @@ const ControlPanel = ({
   onGenerate,
   isStreaming,
   numbers,
-  onDummyData,
   onCsvUpload,
   analysisReady = false
 }: ControlPanelProps) => {
@@ -392,21 +390,6 @@ const ControlPanel = ({
             {t('controlPanel.csvNumericInstruction')}
             <br />
           </div>
-        </div>
-
-        <div className="control-group" style={{ marginTop: '20px', paddingTop: '20px', borderTop: '2px solid #e0e0e0' }}>
-          <button
-            onClick={onDummyData}
-            disabled={isStreaming || isUploading}
-            className="generate-button"
-            style={{ width: '100%', backgroundColor: '#666' }}
-          >
-            <span className="button-icon">📊</span>
-            <span>{isStreaming ? t('controlPanel.loading') : t('controlPanel.loadDummyData')}</span>
-          </button>
-          <p style={{ fontSize: '12px', color: '#666', marginTop: '10px', textAlign: 'center' }}>
-            {t('controlPanel.dummyDataHint')}
-          </p>
         </div>
       </div>
 

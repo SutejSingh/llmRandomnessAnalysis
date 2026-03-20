@@ -34,8 +34,6 @@
     "pleaseSelectCsv": "Please select a CSV file (.csv extension)",
     "failedToUploadCsv": "Failed to upload CSV file",
     "loading": "Loading...",
-    "loadDummyData": "Load Dummy Data for Testing",
-    "dummyDataHint": "Loads test data from dummy_data.json file. Supports both single array [x,x,x] and multi-run [[x,x,x], [x,x,x]] formats.",
     "systemPrompt": "System Prompt:",
     "systemPromptPlaceholder": "Enter custom system prompt...",
     "resetToDefault": "Reset to Default",
