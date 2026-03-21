@@ -1,5 +1,6 @@
 import { AreaChart, Area, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { t } from '../../i18n'
+import { formatFixed } from '../../utils/formatStat'
 
 interface DistributionSectionProps {
   analysis: any
@@ -12,6 +13,10 @@ const DistributionSection = ({ analysis, view, onViewChange }: DistributionSecti
   const qqData = analysis.distribution?.qq_plot?.sample?.map((sample: number, idx: number) => ({ sample, theoretical: analysis.distribution.qq_plot.theoretical[idx] })) || []
 
   if (!analysis.distribution) return null
+
+  const na = t('basicStats.na')
+  const ksP = analysis.distribution.is_uniform.ks_p
+  const ksPass = typeof ksP === 'number' && Number.isFinite(ksP) && ksP > 0.05
 
   return (
     <div className="stats-section">
@@ -26,9 +31,9 @@ const DistributionSection = ({ analysis, view, onViewChange }: DistributionSecti
         <div className="test-results test-results--fit">
           <div className="test-card">
             <h4>{t('distributionSection.uniformityTest')}</h4>
-            <p>{t('distributionSection.kolmogorovSmirnov', { p: analysis.distribution.is_uniform.ks_p.toFixed(4) })}</p>
-            <p className={analysis.distribution.is_uniform.ks_p > 0.05 ? 'pass' : 'fail'}>
-              {analysis.distribution.is_uniform.ks_p > 0.05 ? t('distributionSection.likelyUniform') : t('distributionSection.notUniform')}
+            <p>{t('distributionSection.kolmogorovSmirnov', { p: formatFixed(ksP, 4, na) })}</p>
+            <p className={ksPass ? 'pass' : 'fail'}>
+              {ksPass ? t('distributionSection.likelyUniform') : t('distributionSection.notUniform')}
             </p>
           </div>
         </div>

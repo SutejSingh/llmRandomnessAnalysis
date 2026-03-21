@@ -1,5 +1,6 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { t } from '../../i18n'
+import { formatFixed } from '../../utils/formatStat'
 import BoxPlot from '../charts/BoxPlot'
 
 interface BasicStatsSectionProps {
@@ -10,7 +11,7 @@ interface BasicStatsSectionProps {
 
 const BasicStatsSection = ({ analysis, view, onViewChange }: BasicStatsSectionProps) => {
   const histogramData = analysis.distribution?.histogram?.edges?.slice(0, -1).map((edge: number, idx: number) => ({
-    bin: edge.toFixed(4),
+    bin: formatFixed(edge, 4, ''),
     count: analysis.distribution.histogram.counts[idx]
   })) || []
 
@@ -28,18 +29,18 @@ const BasicStatsSection = ({ analysis, view, onViewChange }: BasicStatsSectionPr
 
       {view === 'stats' && (
         <div className="stats-grid">
-          <div className="stat-card"><div className="stat-label">{t('basicStats.mean')}</div><div className="stat-value">{analysis.basic_stats.mean.toFixed(4)}</div></div>
-          <div className="stat-card"><div className="stat-label">{t('basicStats.median')}</div><div className="stat-value">{analysis.basic_stats.median.toFixed(4)}</div></div>
-          <div className="stat-card"><div className="stat-label">{t('basicStats.mode')}</div><div className="stat-value">{typeof analysis.basic_stats.mode === 'number' && !Number.isNaN(analysis.basic_stats.mode) ? analysis.basic_stats.mode.toFixed(4) : na}</div></div>
-          <div className="stat-card"><div className="stat-label">{t('basicStats.stdDev')}</div><div className="stat-value">{analysis.basic_stats.std.toFixed(4)}</div></div>
-          <div className="stat-card"><div className="stat-label">{t('basicStats.variance')}</div><div className="stat-value">{analysis.basic_stats.variance.toFixed(4)}</div></div>
-          <div className="stat-card"><div className="stat-label">{t('basicStats.min')}</div><div className="stat-value">{analysis.basic_stats.min.toFixed(4)}</div></div>
-          <div className="stat-card"><div className="stat-label">{t('basicStats.max')}</div><div className="stat-value">{analysis.basic_stats.max.toFixed(4)}</div></div>
-          <div className="stat-card"><div className="stat-label">{t('basicStats.q25')}</div><div className="stat-value">{analysis.basic_stats.q25.toFixed(4)}</div></div>
-          <div className="stat-card"><div className="stat-label">{t('basicStats.q75')}</div><div className="stat-value">{analysis.basic_stats.q75.toFixed(4)}</div></div>
-          <div className="stat-card"><div className="stat-label">{t('basicStats.q95')}</div><div className="stat-value">{analysis.basic_stats.q95.toFixed(4)}</div></div>
-          <div className="stat-card"><div className="stat-label">{t('basicStats.skewness')}</div><div className="stat-value">{analysis.basic_stats.skewness.toFixed(4)}</div></div>
-          <div className="stat-card"><div className="stat-label">{t('basicStats.kurtosis')}</div><div className="stat-value">{analysis.basic_stats.kurtosis.toFixed(4)}</div></div>
+          <div className="stat-card"><div className="stat-label">{t('basicStats.mean')}</div><div className="stat-value">{formatFixed(analysis.basic_stats.mean, 4, na)}</div></div>
+          <div className="stat-card"><div className="stat-label">{t('basicStats.median')}</div><div className="stat-value">{formatFixed(analysis.basic_stats.median, 4, na)}</div></div>
+          <div className="stat-card"><div className="stat-label">{t('basicStats.mode')}</div><div className="stat-value">{formatFixed(analysis.basic_stats.mode, 4, na)}</div></div>
+          <div className="stat-card"><div className="stat-label">{t('basicStats.stdDev')}</div><div className="stat-value">{formatFixed(analysis.basic_stats.std, 4, na)}</div></div>
+          <div className="stat-card"><div className="stat-label">{t('basicStats.variance')}</div><div className="stat-value">{formatFixed(analysis.basic_stats.variance, 4, na)}</div></div>
+          <div className="stat-card"><div className="stat-label">{t('basicStats.min')}</div><div className="stat-value">{formatFixed(analysis.basic_stats.min, 4, na)}</div></div>
+          <div className="stat-card"><div className="stat-label">{t('basicStats.max')}</div><div className="stat-value">{formatFixed(analysis.basic_stats.max, 4, na)}</div></div>
+          <div className="stat-card"><div className="stat-label">{t('basicStats.q25')}</div><div className="stat-value">{formatFixed(analysis.basic_stats.q25, 4, na)}</div></div>
+          <div className="stat-card"><div className="stat-label">{t('basicStats.q75')}</div><div className="stat-value">{formatFixed(analysis.basic_stats.q75, 4, na)}</div></div>
+          <div className="stat-card"><div className="stat-label">{t('basicStats.q95')}</div><div className="stat-value">{formatFixed(analysis.basic_stats.q95, 4, na)}</div></div>
+          <div className="stat-card"><div className="stat-label">{t('basicStats.skewness')}</div><div className="stat-value">{formatFixed(analysis.basic_stats.skewness, 4, na)}</div></div>
+          <div className="stat-card"><div className="stat-label">{t('basicStats.kurtosis')}</div><div className="stat-value">{formatFixed(analysis.basic_stats.kurtosis, 4, na)}</div></div>
         </div>
       )}
 

@@ -3,9 +3,11 @@ import json
 import re
 import asyncio
 import logging
-from typing import AsyncIterator, List, Optional
+from typing import AsyncIterator, Dict, List, Optional
 from openai import AsyncOpenAI
 from anthropic import AsyncAnthropic
+
+from model_ids import resolve_model_id
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +20,18 @@ class LLMClient:
             "anthropic": "You are a random number generator. Generate a single random number between 0 and 1. Respond with ONLY the number, no explanation, no formatting, just the decimal number.",
             "deepseek": "You are a random number generator. Generate a single random number between 0 and 1. Respond with ONLY the number, no explanation, no formatting, just the decimal number."
         }
-    
+
+    @staticmethod
+    def _openai_max_output_kw(model_id: str, limit: int) -> Dict[str, int]:
+        """
+        Newer OpenAI chat models (e.g. gpt-5.x) return 400 if you pass max_tokens; the API
+        requires max_completion_tokens instead. Older models still expect max_tokens.
+        """
+        mid = (model_id or "").strip().lower()
+        if mid.startswith("gpt-5") or mid.startswith("o1") or mid.startswith("o3"):
+            return {"max_completion_tokens": limit}
+        return {"max_tokens": limit}
+
     def _get_api_key(self, provider: str, provided_key: Optional[str] = None) -> Optional[str]:
         """Get API key from provided key or environment variable"""
         if provided_key and provided_key.strip():
@@ -176,10 +189,34 @@ class LLMClient:
     def _default_user_prompt_batch(self) -> str:
         """Minimal trigger when user prompt is empty; only system prompt carries instruction."""
         return ""
+
+    def _anthropic_user_message(self, user_prompt: Optional[str], batch: bool) -> str:
+        """Anthropic Messages API requires non-empty user content (OpenAI/DeepSeek allow empty)."""
+        if user_prompt and user_prompt.strip():
+            return user_prompt.strip()
+        fallback = (
+            self._default_user_prompt_batch() if batch else self._default_user_prompt_one()
+        )
+        if fallback.strip():
+            return fallback
+        return (
+            "Generate the numbers as specified in the system message."
+            if batch
+            else "Generate one number as specified in the system message."
+        )
     
-    async def _generate_openai(self, system_prompt: str, count: int, api_key: Optional[str] = None, user_prompt: Optional[str] = None) -> List[float]:
+    async def _generate_openai(
+        self,
+        system_prompt: str,
+        count: int,
+        api_key: Optional[str] = None,
+        user_prompt: Optional[str] = None,
+        model_id: str = "gpt-5.4",
+    ) -> List[float]:
         """Generate numbers using OpenAI"""
-        logger.info(f"Starting OpenAI generation: count={count}, system_prompt length={len(system_prompt)}")
+        logger.info(
+            f"Starting OpenAI generation: model={model_id}, count={count}, system_prompt length={len(system_prompt)}"
+        )
         logger.debug(f"System prompt being used: {system_prompt[:200]}...")
         api_key = self._get_api_key("openai", api_key)
         if not api_key:
@@ -193,13 +230,13 @@ class LLMClient:
                 logger.debug(f"OpenAI request {i+1}/{count} using system prompt")
                 user_content = (user_prompt and user_prompt.strip()) or self._default_user_prompt_one()
                 response = await client.chat.completions.create(
-                    model="gpt-4",
+                    model=model_id,
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_content}
                     ],
                     temperature=1.0,
-                    max_tokens=50
+                    **self._openai_max_output_kw(model_id, 50),
                 )
                 text = response.choices[0].message.content
                 logger.debug(f"OpenAI response {i+1}: {text}")
@@ -216,9 +253,18 @@ class LLMClient:
         logger.info(f"OpenAI generation complete: {len(numbers)}/{count} numbers generated")
         return numbers
     
-    async def _generate_anthropic(self, system_prompt: str, count: int, api_key: Optional[str] = None, user_prompt: Optional[str] = None) -> List[float]:
+    async def _generate_anthropic(
+        self,
+        system_prompt: str,
+        count: int,
+        api_key: Optional[str] = None,
+        user_prompt: Optional[str] = None,
+        model_id: str = "claude-sonnet-4-6",
+    ) -> List[float]:
         """Generate numbers using Anthropic"""
-        logger.info(f"Starting Anthropic generation: count={count}, system_prompt length={len(system_prompt)}")
+        logger.info(
+            f"Starting Anthropic generation: model={model_id}, count={count}, system_prompt length={len(system_prompt)}"
+        )
         logger.debug(f"System prompt being used: {system_prompt[:200]}...")
         api_key = self._get_api_key("anthropic", api_key)
         if not api_key:
@@ -230,9 +276,9 @@ class LLMClient:
         for i in range(count):
             try:
                 logger.debug(f"Anthropic request {i+1}/{count} using system prompt")
-                user_content = (user_prompt and user_prompt.strip()) or self._default_user_prompt_one()
+                user_content = self._anthropic_user_message(user_prompt, batch=False)
                 response = await client.messages.create(
-                    model="claude-3-5-sonnet-20241022",
+                    model=model_id,
                     max_tokens=50,
                     temperature=1.0,
                     system=system_prompt,
@@ -255,9 +301,18 @@ class LLMClient:
         logger.info(f"Anthropic generation complete: {len(numbers)}/{count} numbers generated")
         return numbers
     
-    async def _generate_deepseek(self, system_prompt: str, count: int, api_key: Optional[str] = None, user_prompt: Optional[str] = None) -> List[float]:
+    async def _generate_deepseek(
+        self,
+        system_prompt: str,
+        count: int,
+        api_key: Optional[str] = None,
+        user_prompt: Optional[str] = None,
+        model_id: str = "deepseek-chat",
+    ) -> List[float]:
         """Generate numbers using DeepSeek"""
-        logger.info(f"Starting DeepSeek generation: count={count}, system_prompt length={len(system_prompt)}")
+        logger.info(
+            f"Starting DeepSeek generation: model={model_id}, count={count}, system_prompt length={len(system_prompt)}"
+        )
         logger.debug(f"System prompt being used: {system_prompt[:200]}...")
         api_key = self._get_api_key("deepseek", api_key)
         if not api_key:
@@ -274,7 +329,7 @@ class LLMClient:
                 logger.debug(f"DeepSeek request {i+1}/{count} using system prompt")
                 user_content = (user_prompt and user_prompt.strip()) or self._default_user_prompt_one()
                 response = await client.chat.completions.create(
-                    model="deepseek-chat",
+                    model=model_id,
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_content}
@@ -297,9 +352,18 @@ class LLMClient:
         logger.info(f"DeepSeek generation complete: {len(numbers)}/{count} numbers generated")
         return numbers
     
-    async def _generate_openai_batch(self, system_prompt: str, count: int, api_key: Optional[str] = None, user_prompt: Optional[str] = None) -> List[float]:
+    async def _generate_openai_batch(
+        self,
+        system_prompt: str,
+        count: int,
+        api_key: Optional[str] = None,
+        user_prompt: Optional[str] = None,
+        model_id: str = "gpt-5.4",
+    ) -> List[float]:
         """Generate multiple numbers in one request using OpenAI - expects CSV format (one number per line)"""
-        logger.info(f"Starting OpenAI batch generation: single request, expecting CSV format")
+        logger.info(
+            f"Starting OpenAI batch generation: model={model_id}, single request, expecting CSV format"
+        )
         api_key = self._get_api_key("openai", api_key)
         if not api_key:
             logger.error("OpenAI API key is required but not found")
@@ -320,13 +384,13 @@ class LLMClient:
             logger.info(f"OpenAI batch request - using system prompt (length: {len(final_system_prompt)})")
             logger.info(f"OpenAI batch request - FULL system prompt being sent to LLM: {final_system_prompt}")
             response = await client.chat.completions.create(
-                model="gpt-4",
+                model=model_id,
                 messages=[
                     {"role": "system", "content": final_system_prompt},
                     {"role": "user", "content": user_content}
                 ],
                 temperature=1.0,
-                max_tokens=5000  # Allow enough tokens for many numbers
+                **self._openai_max_output_kw(model_id, 5000),
             )
             text = response.choices[0].message.content
             logger.debug(f"OpenAI batch response (first 500 chars): {text[:500]}...")
@@ -340,9 +404,18 @@ class LLMClient:
             logger.error(f"OpenAI batch error: {str(e)}", exc_info=True)
             return []
     
-    async def _generate_anthropic_batch(self, system_prompt: str, count: int, api_key: Optional[str] = None, user_prompt: Optional[str] = None) -> List[float]:
+    async def _generate_anthropic_batch(
+        self,
+        system_prompt: str,
+        count: int,
+        api_key: Optional[str] = None,
+        user_prompt: Optional[str] = None,
+        model_id: str = "claude-sonnet-4-6",
+    ) -> List[float]:
         """Generate multiple numbers in one request using Anthropic - expects CSV format (one number per line)"""
-        logger.info(f"Starting Anthropic batch generation: single request, expecting CSV format")
+        logger.info(
+            f"Starting Anthropic batch generation: model={model_id}, single request, expecting CSV format"
+        )
         api_key = self._get_api_key("anthropic", api_key)
         if not api_key:
             logger.error("Anthropic API key is required but not found")
@@ -359,11 +432,11 @@ class LLMClient:
             else:
                 logger.debug("System prompt already contains CSV/format instructions, using as-is")
             
-            user_content = (user_prompt and user_prompt.strip()) or self._default_user_prompt_batch()
+            user_content = self._anthropic_user_message(user_prompt, batch=True)
             logger.info(f"Anthropic batch request - using system prompt (length: {len(final_system_prompt)})")
             logger.info(f"Anthropic batch request - FULL system prompt being sent to LLM: {final_system_prompt}")
             response = await client.messages.create(
-                model="claude-3-5-sonnet-20241022",
+                model=model_id,
                 max_tokens=5000,
                 temperature=1.0,
                 system=final_system_prompt,
@@ -383,9 +456,18 @@ class LLMClient:
             logger.error(f"Anthropic batch error: {str(e)}", exc_info=True)
             return []
     
-    async def _generate_deepseek_batch(self, system_prompt: str, count: int, api_key: Optional[str] = None, user_prompt: Optional[str] = None) -> List[float]:
+    async def _generate_deepseek_batch(
+        self,
+        system_prompt: str,
+        count: int,
+        api_key: Optional[str] = None,
+        user_prompt: Optional[str] = None,
+        model_id: str = "deepseek-chat",
+    ) -> List[float]:
         """Generate multiple numbers in one request using DeepSeek - expects CSV format (one number per line)"""
-        logger.info(f"Starting DeepSeek batch generation: single request, expecting CSV format")
+        logger.info(
+            f"Starting DeepSeek batch generation: model={model_id}, single request, expecting CSV format"
+        )
         api_key = self._get_api_key("deepseek", api_key)
         if not api_key:
             logger.error("DeepSeek API key is required but not found")
@@ -409,7 +491,7 @@ class LLMClient:
             logger.info(f"DeepSeek batch request - using system prompt (length: {len(final_system_prompt)})")
             logger.info(f"DeepSeek batch request - FULL system prompt being sent to LLM: {final_system_prompt}")
             response = await client.chat.completions.create(
-                model="deepseek-chat",
+                model=model_id,
                 messages=[
                     {"role": "system", "content": final_system_prompt},
                     {"role": "user", "content": user_content}
@@ -436,10 +518,15 @@ class LLMClient:
         user_prompt: Optional[str] = None,
         count: int = 100,
         api_key: Optional[str] = None,
-        batch_mode: bool = False
+        batch_mode: bool = False,
+        model: Optional[str] = None,
     ) -> List[float]:
         """Generate random numbers from specified provider"""
-        logger.info(f"generate_random_numbers called: provider={provider}, count={count}, batch_mode={batch_mode}, has_custom_prompt={bool(system_prompt)}, has_user_prompt={bool(user_prompt)}")
+        model_id = resolve_model_id(provider, model)
+        logger.info(
+            f"generate_random_numbers called: provider={provider}, model={model_id}, count={count}, "
+            f"batch_mode={batch_mode}, has_custom_prompt={bool(system_prompt)}, has_user_prompt={bool(user_prompt)}"
+        )
         if system_prompt and system_prompt.strip():
             prompt = system_prompt.strip()
             logger.info(f"Using user-provided system prompt (length: {len(prompt)})")
@@ -451,21 +538,21 @@ class LLMClient:
         
         if batch_mode:
             if provider == "openai":
-                return await self._generate_openai_batch(prompt, count, api_key, user_prompt)
+                return await self._generate_openai_batch(prompt, count, api_key, user_prompt, model_id)
             elif provider == "anthropic":
-                return await self._generate_anthropic_batch(prompt, count, api_key, user_prompt)
+                return await self._generate_anthropic_batch(prompt, count, api_key, user_prompt, model_id)
             elif provider == "deepseek":
-                return await self._generate_deepseek_batch(prompt, count, api_key, user_prompt)
+                return await self._generate_deepseek_batch(prompt, count, api_key, user_prompt, model_id)
             else:
                 logger.error(f"Unknown provider: {provider}")
                 raise ValueError(f"Unknown provider: {provider}")
         else:
             if provider == "openai":
-                return await self._generate_openai(prompt, count, api_key, user_prompt)
+                return await self._generate_openai(prompt, count, api_key, user_prompt, model_id)
             elif provider == "anthropic":
-                return await self._generate_anthropic(prompt, count, api_key, user_prompt)
+                return await self._generate_anthropic(prompt, count, api_key, user_prompt, model_id)
             elif provider == "deepseek":
-                return await self._generate_deepseek(prompt, count, api_key, user_prompt)
+                return await self._generate_deepseek(prompt, count, api_key, user_prompt, model_id)
             else:
                 logger.error(f"Unknown provider: {provider}")
                 raise ValueError(f"Unknown provider: {provider}")
@@ -477,9 +564,11 @@ class LLMClient:
         user_prompt: Optional[str] = None,
         count: int = 100,
         api_key: Optional[str] = None,
-        batch_mode: bool = False
+        batch_mode: bool = False,
+        model: Optional[str] = None,
     ) -> AsyncIterator[float]:
         """Stream random numbers from specified provider"""
+        model_id = resolve_model_id(provider, model)
         if system_prompt and system_prompt.strip():
             prompt = system_prompt.strip()
             logger.info(f"Using user-provided system prompt in stream (length: {len(prompt)})")
@@ -492,11 +581,11 @@ class LLMClient:
         if batch_mode:
             # In batch mode, generate all numbers at once and stream them
             if provider == "openai":
-                numbers = await self._generate_openai_batch(prompt, count, api_key, user_prompt)
+                numbers = await self._generate_openai_batch(prompt, count, api_key, user_prompt, model_id)
             elif provider == "anthropic":
-                numbers = await self._generate_anthropic_batch(prompt, count, api_key, user_prompt)
+                numbers = await self._generate_anthropic_batch(prompt, count, api_key, user_prompt, model_id)
             elif provider == "deepseek":
-                numbers = await self._generate_deepseek_batch(prompt, count, api_key, user_prompt)
+                numbers = await self._generate_deepseek_batch(prompt, count, api_key, user_prompt, model_id)
             else:
                 raise ValueError(f"Unknown provider: {provider}")
             
@@ -507,20 +596,29 @@ class LLMClient:
         else:
             # One-by-one mode
             if provider == "openai":
-                async for num in self._generate_openai_stream(prompt, count, api_key, user_prompt):
+                async for num in self._generate_openai_stream(prompt, count, api_key, user_prompt, model_id):
                     yield num
             elif provider == "anthropic":
-                async for num in self._generate_anthropic_stream(prompt, count, api_key, user_prompt):
+                async for num in self._generate_anthropic_stream(prompt, count, api_key, user_prompt, model_id):
                     yield num
             elif provider == "deepseek":
-                async for num in self._generate_deepseek_stream(prompt, count, api_key, user_prompt):
+                async for num in self._generate_deepseek_stream(prompt, count, api_key, user_prompt, model_id):
                     yield num
             else:
                 raise ValueError(f"Unknown provider: {provider}")
     
-    async def _generate_openai_stream(self, system_prompt: str, count: int, api_key: Optional[str] = None, user_prompt: Optional[str] = None) -> AsyncIterator[float]:
+    async def _generate_openai_stream(
+        self,
+        system_prompt: str,
+        count: int,
+        api_key: Optional[str] = None,
+        user_prompt: Optional[str] = None,
+        model_id: str = "gpt-5.4",
+    ) -> AsyncIterator[float]:
         """Stream numbers using OpenAI"""
-        logger.info(f"Starting OpenAI stream: count={count}, system_prompt length={len(system_prompt)}")
+        logger.info(
+            f"Starting OpenAI stream: model={model_id}, count={count}, system_prompt length={len(system_prompt)}"
+        )
         logger.debug(f"System prompt being used in stream: {system_prompt[:200]}...")
         api_key = self._get_api_key("openai", api_key)
         if not api_key:
@@ -533,13 +631,13 @@ class LLMClient:
                 user_content = (user_prompt and user_prompt.strip()) or self._default_user_prompt_one()
                 logger.debug(f"OpenAI stream request {i+1}/{count} using system prompt")
                 response = await client.chat.completions.create(
-                    model="gpt-4",
+                    model=model_id,
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_content}
                     ],
                     temperature=1.0,
-                    max_tokens=50
+                    **self._openai_max_output_kw(model_id, 50),
                 )
                 text = response.choices[0].message.content
                 logger.debug(f"OpenAI stream response {i+1}: {text}")
@@ -554,9 +652,18 @@ class LLMClient:
                 logger.error(f"OpenAI stream error on request {i+1}/{count}: {str(e)}", exc_info=True)
                 continue
     
-    async def _generate_anthropic_stream(self, system_prompt: str, count: int, api_key: Optional[str] = None, user_prompt: Optional[str] = None) -> AsyncIterator[float]:
+    async def _generate_anthropic_stream(
+        self,
+        system_prompt: str,
+        count: int,
+        api_key: Optional[str] = None,
+        user_prompt: Optional[str] = None,
+        model_id: str = "claude-sonnet-4-6",
+    ) -> AsyncIterator[float]:
         """Stream numbers using Anthropic"""
-        logger.info(f"Starting Anthropic stream: count={count}, system_prompt length={len(system_prompt)}")
+        logger.info(
+            f"Starting Anthropic stream: model={model_id}, count={count}, system_prompt length={len(system_prompt)}"
+        )
         logger.debug(f"System prompt being used in stream: {system_prompt[:200]}...")
         api_key = self._get_api_key("anthropic", api_key)
         if not api_key:
@@ -566,10 +673,10 @@ class LLMClient:
         client = AsyncAnthropic(api_key=api_key)
         for i in range(count):
             try:
-                user_content = (user_prompt and user_prompt.strip()) or self._default_user_prompt_one()
+                user_content = self._anthropic_user_message(user_prompt, batch=False)
                 logger.debug(f"Anthropic stream request {i+1}/{count} using system prompt")
                 response = await client.messages.create(
-                    model="claude-3-5-sonnet-20241022",
+                    model=model_id,
                     max_tokens=50,
                     temperature=1.0,
                     system=system_prompt,
@@ -590,9 +697,18 @@ class LLMClient:
                 logger.error(f"Anthropic stream error on request {i+1}/{count}: {str(e)}", exc_info=True)
                 continue
     
-    async def _generate_deepseek_stream(self, system_prompt: str, count: int, api_key: Optional[str] = None, user_prompt: Optional[str] = None) -> AsyncIterator[float]:
+    async def _generate_deepseek_stream(
+        self,
+        system_prompt: str,
+        count: int,
+        api_key: Optional[str] = None,
+        user_prompt: Optional[str] = None,
+        model_id: str = "deepseek-chat",
+    ) -> AsyncIterator[float]:
         """Stream numbers using DeepSeek"""
-        logger.info(f"Starting DeepSeek stream: count={count}, system_prompt length={len(system_prompt)}")
+        logger.info(
+            f"Starting DeepSeek stream: model={model_id}, count={count}, system_prompt length={len(system_prompt)}"
+        )
         logger.debug(f"System prompt being used in stream: {system_prompt[:200]}...")
         api_key = self._get_api_key("deepseek", api_key)
         if not api_key:
@@ -608,7 +724,7 @@ class LLMClient:
                 user_content = (user_prompt and user_prompt.strip()) or self._default_user_prompt_one()
                 logger.debug(f"DeepSeek stream request {i+1}/{count} using system prompt")
                 response = await client.chat.completions.create(
-                    model="deepseek-chat",
+                    model=model_id,
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_content}

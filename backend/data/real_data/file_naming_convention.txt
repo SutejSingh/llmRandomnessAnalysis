@@ -1,0 +1,11 @@
+<model>_<model_version_number>_<type_of_request>_<Xruns>_<Ync>
+
+where
+type_of_request ∈ ["1rpn", "1r4a"]
+    where 
+    1rpn = One Request Per Number
+    1r4a = One Request For All
+
+Xruns = X number of runs
+Ync = where Y is a number and nc = number count
+

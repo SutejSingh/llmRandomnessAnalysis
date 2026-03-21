@@ -1,29 +1,45 @@
+import { formatFixed } from '../../utils/formatStat'
+
 interface BoxPlotProps {
-  min: number
-  q25: number
-  median: number
-  q75: number
-  max: number
+  min: number | null | undefined
+  q25: number | null | undefined
+  median: number | null | undefined
+  q75: number | null | undefined
+  max: number | null | undefined
 }
 
 const BoxPlot = ({ min, q25, median, q75, max }: BoxPlotProps) => {
+  const na = 'N/A'
+  const nums = [min, q25, median, q75, max]
+  if (!nums.every((v) => typeof v === 'number' && Number.isFinite(v))) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>{na}</div>
+    )
+  }
+
+  const vMin = min as number
+  const vQ25 = q25 as number
+  const vMedian = median as number
+  const vQ75 = q75 as number
+  const vMax = max as number
+
   const width = 600
   const height = 200
   const padding = 80
   const plotWidth = width - 2 * padding
   const plotHeight = height - 2 * padding
 
-  const range = max - min || 1
+  const range = vMax - vMin || 1
   const scale = (value: number) => {
     if (range === 0) return padding + plotWidth / 2
-    return ((value - min) / range) * plotWidth + padding
+    return ((value - vMin) / range) * plotWidth + padding
   }
 
-  const xMin = scale(min)
-  const xQ25 = scale(q25)
-  const xMedian = scale(median)
-  const xQ75 = scale(q75)
-  const xMax = scale(max)
+  const xMin = scale(vMin)
+  const xQ25 = scale(vQ25)
+  const xMedian = scale(vMedian)
+  const xQ75 = scale(vQ75)
+  const xMax = scale(vMax)
 
   const boxY = padding + plotHeight / 2 - 30
   const boxHeight = 60
@@ -55,20 +71,20 @@ const BoxPlot = ({ min, q25, median, q75, max }: BoxPlotProps) => {
         <text x={q75LabelX} y={boxY + boxHeight + 25} textAnchor="middle" fontSize="11" fill="#666" fontFamily="Courier New">Q75</text>
         <text x={maxLabelX} y={boxY + boxHeight + 25} textAnchor="middle" fontSize="11" fill="#666" fontFamily="Courier New">Max</text>
 
-        <text x={minLabelX} y={boxY + boxHeight + 40} textAnchor="middle" fontSize="10" fill="#666" fontFamily="Courier New">{min.toFixed(4)}</text>
-        <text x={q25LabelX} y={boxY + boxHeight + 40} textAnchor="middle" fontSize="10" fill="#666" fontFamily="Courier New">{q25.toFixed(4)}</text>
-        <text x={xMedian} y={boxY - 2} textAnchor="middle" fontSize="10" fill="#000" fontFamily="Courier New" fontWeight="bold">{median.toFixed(4)}</text>
-        <text x={q75LabelX} y={boxY + boxHeight + 40} textAnchor="middle" fontSize="10" fill="#666" fontFamily="Courier New">{q75.toFixed(4)}</text>
-        <text x={maxLabelX} y={boxY + boxHeight + 40} textAnchor="middle" fontSize="10" fill="#666" fontFamily="Courier New">{max.toFixed(4)}</text>
+        <text x={minLabelX} y={boxY + boxHeight + 40} textAnchor="middle" fontSize="10" fill="#666" fontFamily="Courier New">{formatFixed(vMin, 4, na)}</text>
+        <text x={q25LabelX} y={boxY + boxHeight + 40} textAnchor="middle" fontSize="10" fill="#666" fontFamily="Courier New">{formatFixed(vQ25, 4, na)}</text>
+        <text x={xMedian} y={boxY - 2} textAnchor="middle" fontSize="10" fill="#000" fontFamily="Courier New" fontWeight="bold">{formatFixed(vMedian, 4, na)}</text>
+        <text x={q75LabelX} y={boxY + boxHeight + 40} textAnchor="middle" fontSize="10" fill="#666" fontFamily="Courier New">{formatFixed(vQ75, 4, na)}</text>
+        <text x={maxLabelX} y={boxY + boxHeight + 40} textAnchor="middle" fontSize="10" fill="#666" fontFamily="Courier New">{formatFixed(vMax, 4, na)}</text>
       </svg>
 
       <div style={{ marginTop: '20px', padding: '15px', background: '#f9f9f9', borderRadius: '6px', border: '1px solid #e0e0e0', width: '100%', maxWidth: width }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px', fontFamily: 'Courier New', fontSize: '13px' }}>
-          <div><strong>Minimum:</strong> {min.toFixed(4)}</div>
-          <div><strong>First Quartile (Q25):</strong> {q25.toFixed(4)}</div>
-          <div><strong>Median:</strong> {median.toFixed(4)}</div>
-          <div><strong>Third Quartile (Q75):</strong> {q75.toFixed(4)}</div>
-          <div><strong>Maximum:</strong> {max.toFixed(4)}</div>
+          <div><strong>Minimum:</strong> {formatFixed(vMin, 4, na)}</div>
+          <div><strong>First Quartile (Q25):</strong> {formatFixed(vQ25, 4, na)}</div>
+          <div><strong>Median:</strong> {formatFixed(vMedian, 4, na)}</div>
+          <div><strong>Third Quartile (Q75):</strong> {formatFixed(vQ75, 4, na)}</div>
+          <div><strong>Maximum:</strong> {formatFixed(vMax, 4, na)}</div>
         </div>
       </div>
     </div>

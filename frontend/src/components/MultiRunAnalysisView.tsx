@@ -16,6 +16,7 @@ import {
   ReferenceLine
 } from 'recharts'
 import { OverlaidBoxPlots } from './charts'
+import { formatFixed } from '../utils/formatStat'
 
 export type PinnedTooltip = { payload: Array<{ name?: string; value?: number; color?: string }>; label: unknown }
 
@@ -270,18 +271,18 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
                 {t('multiRun.combinedStreamDesc')}
               </p>
               <div className="stats-grid">
-                <div className="stat-card"><div className="stat-label">{t('multiRun.mean')}</div><div className="stat-value">{typeof analysis.combined_stream_stats.mean === 'number' ? analysis.combined_stream_stats.mean.toFixed(4) : t('basicStats.na')}</div></div>
-                <div className="stat-card"><div className="stat-label">{t('multiRun.mode')}</div><div className="stat-value">{typeof analysis.combined_stream_stats.mode === 'number' && !Number.isNaN(analysis.combined_stream_stats.mode) ? analysis.combined_stream_stats.mode.toFixed(4) : t('basicStats.na')}</div></div>
-                <div className="stat-card"><div className="stat-label">{t('basicStats.median')}</div><div className="stat-value">{typeof analysis.combined_stream_stats.median === 'number' ? analysis.combined_stream_stats.median.toFixed(4) : t('basicStats.na')}</div></div>
-                <div className="stat-card"><div className="stat-label">{t('multiRun.stdDev')}</div><div className="stat-value">{typeof analysis.combined_stream_stats.std === 'number' ? analysis.combined_stream_stats.std.toFixed(4) : t('basicStats.na')}</div></div>
-                <div className="stat-card"><div className="stat-label">{t('basicStats.variance')}</div><div className="stat-value">{typeof analysis.combined_stream_stats.variance === 'number' ? analysis.combined_stream_stats.variance.toFixed(4) : t('basicStats.na')}</div></div>
-                <div className="stat-card"><div className="stat-label">{t('multiRun.min')}</div><div className="stat-value">{typeof analysis.combined_stream_stats.min === 'number' ? analysis.combined_stream_stats.min.toFixed(4) : t('basicStats.na')}</div></div>
-                <div className="stat-card"><div className="stat-label">{t('multiRun.max')}</div><div className="stat-value">{typeof analysis.combined_stream_stats.max === 'number' ? analysis.combined_stream_stats.max.toFixed(4) : t('basicStats.na')}</div></div>
-                <div className="stat-card"><div className="stat-label">{t('basicStats.q25')}</div><div className="stat-value">{typeof analysis.combined_stream_stats.q25 === 'number' ? analysis.combined_stream_stats.q25.toFixed(4) : t('basicStats.na')}</div></div>
-                <div className="stat-card"><div className="stat-label">Q50</div><div className="stat-value">{typeof analysis.combined_stream_stats.q50 === 'number' ? analysis.combined_stream_stats.q50.toFixed(4) : t('basicStats.na')}</div></div>
-                <div className="stat-card"><div className="stat-label">{t('basicStats.q75')}</div><div className="stat-value">{typeof analysis.combined_stream_stats.q75 === 'number' ? analysis.combined_stream_stats.q75.toFixed(4) : t('basicStats.na')}</div></div>
-                <div className="stat-card"><div className="stat-label">{t('basicStats.skewness')}</div><div className="stat-value">{typeof analysis.combined_stream_stats.skewness === 'number' ? analysis.combined_stream_stats.skewness.toFixed(4) : t('basicStats.na')}</div></div>
-                <div className="stat-card"><div className="stat-label">{t('basicStats.kurtosis')}</div><div className="stat-value">{typeof analysis.combined_stream_stats.kurtosis === 'number' ? analysis.combined_stream_stats.kurtosis.toFixed(4) : t('basicStats.na')}</div></div>
+                <div className="stat-card"><div className="stat-label">{t('multiRun.mean')}</div><div className="stat-value">{formatFixed(analysis.combined_stream_stats.mean, 4, t('basicStats.na'))}</div></div>
+                <div className="stat-card"><div className="stat-label">{t('multiRun.mode')}</div><div className="stat-value">{formatFixed(analysis.combined_stream_stats.mode, 4, t('basicStats.na'))}</div></div>
+                <div className="stat-card"><div className="stat-label">{t('basicStats.median')}</div><div className="stat-value">{formatFixed(analysis.combined_stream_stats.median, 4, t('basicStats.na'))}</div></div>
+                <div className="stat-card"><div className="stat-label">{t('multiRun.stdDev')}</div><div className="stat-value">{formatFixed(analysis.combined_stream_stats.std, 4, t('basicStats.na'))}</div></div>
+                <div className="stat-card"><div className="stat-label">{t('basicStats.variance')}</div><div className="stat-value">{formatFixed(analysis.combined_stream_stats.variance, 4, t('basicStats.na'))}</div></div>
+                <div className="stat-card"><div className="stat-label">{t('multiRun.min')}</div><div className="stat-value">{formatFixed(analysis.combined_stream_stats.min, 4, t('basicStats.na'))}</div></div>
+                <div className="stat-card"><div className="stat-label">{t('multiRun.max')}</div><div className="stat-value">{formatFixed(analysis.combined_stream_stats.max, 4, t('basicStats.na'))}</div></div>
+                <div className="stat-card"><div className="stat-label">{t('basicStats.q25')}</div><div className="stat-value">{formatFixed(analysis.combined_stream_stats.q25, 4, t('basicStats.na'))}</div></div>
+                <div className="stat-card"><div className="stat-label">Q50</div><div className="stat-value">{formatFixed(analysis.combined_stream_stats.q50, 4, t('basicStats.na'))}</div></div>
+                <div className="stat-card"><div className="stat-label">{t('basicStats.q75')}</div><div className="stat-value">{formatFixed(analysis.combined_stream_stats.q75, 4, t('basicStats.na'))}</div></div>
+                <div className="stat-card"><div className="stat-label">{t('basicStats.skewness')}</div><div className="stat-value">{formatFixed(analysis.combined_stream_stats.skewness, 4, t('basicStats.na'))}</div></div>
+                <div className="stat-card"><div className="stat-label">{t('basicStats.kurtosis')}</div><div className="stat-value">{formatFixed(analysis.combined_stream_stats.kurtosis, 4, t('basicStats.na'))}</div></div>
               </div>
             </div>
           )}
@@ -321,7 +322,13 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
                           <td>{runAnalysis.basic_stats?.min?.toFixed(4) || 'N/A'}</td>
                           <td>{runAnalysis.basic_stats?.max?.toFixed(4) || 'N/A'}</td>
                           <td>{runAnalysis.basic_stats ? (runAnalysis.basic_stats.max - runAnalysis.basic_stats.min).toFixed(4) : 'N/A'}</td>
-                          <td>{runAnalysis.distribution?.is_uniform?.ks_p !== undefined ? `${runAnalysis.distribution.is_uniform.ks_p.toFixed(4)} ${runAnalysis.distribution.is_uniform.ks_p > 0.05 ? '✓' : '✗'}` : 'N/A'}</td>
+                          <td>
+                            {(() => {
+                              const p = runAnalysis.distribution?.is_uniform?.ks_p
+                              if (typeof p !== 'number' || !Number.isFinite(p)) return 'N/A'
+                              return `${p.toFixed(4)} ${p > 0.05 ? '✓' : '✗'}`
+                            })()}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -342,7 +349,7 @@ const MultiRunAnalysisView = ({ analysis, allRuns, onSelectRun }: MultiRunAnalys
                       <tr key={row.run}>
                         <td>{row.run}</td>
                         <td>{Array.isArray(row.significant_lags) && row.significant_lags.length > 0 && row.significant_lags[0] !== 'None' ? row.significant_lags.join(', ') : 'None'}</td>
-                        <td>{row.max_correlation.toFixed(4)}</td>
+                        <td>{formatFixed(row.max_correlation, 4, 'N/A')}</td>
                       </tr>
                     ))}
                   </tbody>

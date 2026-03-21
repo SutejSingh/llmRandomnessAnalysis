@@ -13,6 +13,7 @@ class PromptRequest(BaseModel):
     count: Optional[int] = 100
     api_key: Optional[str] = None  # API key for the selected provider
     batch_mode: Optional[bool] = False  # True = one request for all numbers, False = one request per number
+    model: Optional[str] = None  # Provider-specific model id (e.g. gpt-5.4, claude-sonnet-4-6, deepseek-chat)
 
 
 class NumberData(BaseModel):

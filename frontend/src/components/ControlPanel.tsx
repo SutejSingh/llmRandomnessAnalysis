@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import { t } from '../i18n'
 import NumberStream from './NumberStream'
+import { getDefaultModelForProvider, getModelOptionsForProvider } from '../constants/llmModels'
 import '../styles/ControlPanel.css'
 
 const API_BASE = 'http://localhost:8000'
@@ -9,6 +10,8 @@ const API_BASE = 'http://localhost:8000'
 interface ControlPanelProps {
   provider: string
   setProvider: (provider: string) => void
+  model: string
+  setModel: (model: string) => void
   systemPrompt: string
   setSystemPrompt: (prompt: string) => void
   userPrompt: string
@@ -31,6 +34,8 @@ interface ControlPanelProps {
 const ControlPanel = ({
   provider,
   setProvider,
+  model,
+  setModel,
   systemPrompt,
   setSystemPrompt,
   userPrompt,
@@ -104,6 +109,7 @@ const ControlPanel = ({
 
   const handleProviderChange = (newProvider: string) => {
     setProvider(newProvider)
+    setModel(getDefaultModelForProvider(newProvider))
     // Update system prompt to default for new provider
     if (!systemPrompt || systemPrompt === getDefaultPrompt()) {
       if (batchMode) {
@@ -234,6 +240,25 @@ const ControlPanel = ({
             <option value="openai">{t('controlPanel.providerOpenai')}</option>
             <option value="anthropic">{t('controlPanel.providerAnthropic')}</option>
             <option value="deepseek">{t('controlPanel.providerDeepseek')}</option>
+          </select>
+        </div>
+
+        <div className="control-group">
+          <label className="control-label">
+            <span className="label-icon">🧠</span>
+            <strong>{t('controlPanel.model')}</strong>
+          </label>
+          <select
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            disabled={isStreaming}
+            className="styled-select"
+          >
+            {getModelOptionsForProvider(provider).map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
           </select>
         </div>
 

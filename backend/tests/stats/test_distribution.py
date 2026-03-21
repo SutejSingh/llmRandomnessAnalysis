@@ -244,8 +244,18 @@ class TestDistributionAnalysis:
         assert sum(out["histogram"]["counts"]) == len(arr)
         assert all(np.isfinite(y) for y in out["kde"]["y"])
 
-    def test_distribution_analysis_constant_input_raises_kde_error(self):
-        """Current behavior: gaussian_kde fails on constant data; test documents this edge case."""
+    def test_distribution_analysis_constant_input_uses_spike_kde(self):
+        """Constant data cannot use scipy gaussian_kde; we use a narrow Gaussian spike instead."""
         arr = np.array([1.0] * 50)
-        with pytest.raises(Exception):
-            distribution_mod.distribution_analysis(arr)
+        out = distribution_mod.distribution_analysis(arr)
+        assert "kde" in out and len(out["kde"]["x"]) == len(out["kde"]["y"])
+        assert all(np.isfinite(y) for y in out["kde"]["y"])
+        assert np.isnan(out["is_uniform"]["ks_p"])
+
+    def test_is_constant_sample(self):
+        from stats.utils import is_constant_sample
+
+        assert is_constant_sample(np.array([7.0] * 100)) is True
+        assert is_constant_sample(np.array([1.0, 2.0])) is False
+        assert is_constant_sample(np.array([1.0])) is True
+        assert is_constant_sample(np.array([1.0, 1.0 + 1e-15])) is True

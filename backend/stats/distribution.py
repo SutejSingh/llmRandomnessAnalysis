@@ -4,7 +4,7 @@ from scipy import stats
 from scipy.stats import kstest
 from typing import Dict, Any, List
 
-from .utils import downsample, MAX_CHART_POINTS
+from .utils import downsample, is_constant_sample, MAX_CHART_POINTS
 
 
 def normalize_to_unit(arr: np.ndarray) -> np.ndarray:
@@ -178,21 +178,50 @@ def compute_distribution_deviation_metrics(runs: List[List[float]]) -> Dict[str,
     }
 
 
+def gaussian_kde_density(arr: np.ndarray, kde_x: np.ndarray) -> np.ndarray:
+    """
+    Evaluate KDE at kde_x for 1D samples. scipy gaussian_kde fails on constant data
+    (singular covariance); use a narrow Gaussian spike at the sample mean instead.
+    """
+    arr = np.asarray(arr, dtype=float).ravel()
+    kde_x = np.asarray(kde_x, dtype=float)
+    if arr.size == 0:
+        return np.zeros_like(kde_x, dtype=float)
+    std = float(np.std(arr, ddof=1)) if arr.size > 1 else 0.0
+    if not np.isfinite(std):
+        std = 0.0
+    if arr.size < 2 or std == 0.0 or np.ptp(arr) == 0:
+        c = float(np.mean(arr))
+        sigma = max(abs(c) * 1e-12, 1e-12)
+        return (1.0 / (sigma * np.sqrt(2 * np.pi))) * np.exp(-0.5 * ((kde_x - c) / sigma) ** 2)
+    return stats.gaussian_kde(arr)(kde_x)
+
+
 def distribution_analysis(arr: np.ndarray) -> Dict[str, Any]:
     """Analyze distribution shape. Chart data capped at MAX_CHART_POINTS."""
     min_val = float(arr.min())
     max_val = float(arr.max())
-    ks_stat, ks_p = kstest(arr, 'uniform', args=(min_val, max_val - min_val))
+    # KS one-sample test vs continuous Uniform(a,b) is undefined when a==b (scale 0):
+    # scipy divides by scale and emits warnings; p-value is NaN. Skip the call.
+    if len(arr) >= 2 and is_constant_sample(arr):
+        ks_stat, ks_p = 0.0, float("nan")
+    else:
+        ks_stat, ks_p = kstest(arr, 'uniform', args=(min_val, max_val - min_val))
     hist_counts, hist_edges = np.histogram(arr, bins=50)
     n_kde = min(MAX_CHART_POINTS, len(arr) + 1)
     kde_x = np.linspace(arr.min(), arr.max(), n_kde)
-    kde_y = stats.gaussian_kde(arr)(kde_x)
+    kde_y = gaussian_kde_density(arr, kde_x)
     sorted_arr = np.sort(arr)
-    theoretical_quantiles = stats.uniform.ppf(
-        np.linspace(0.01, 0.99, len(sorted_arr)),
-        loc=min_val,
-        scale=max_val - min_val
-    )
+    scale = max_val - min_val
+    # Q–Q vs U(a,b): if a==b, all theoretical quantiles equal a; avoid ppf with scale=0.
+    if scale <= 0:
+        theoretical_quantiles = np.full(len(sorted_arr), min_val, dtype=float)
+    else:
+        theoretical_quantiles = stats.uniform.ppf(
+            np.linspace(0.01, 0.99, len(sorted_arr)),
+            loc=min_val,
+            scale=scale,
+        )
     sample_list, theory_list = downsample(
         sorted_arr, np.array(theoretical_quantiles), MAX_CHART_POINTS
     )

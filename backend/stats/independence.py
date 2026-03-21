@@ -2,7 +2,7 @@
 import numpy as np
 from typing import Dict, Any
 
-from .utils import downsample, downsample_single, MAX_CHART_POINTS
+from .utils import downsample, downsample_single, is_constant_sample, MAX_CHART_POINTS
 
 
 def independence_analysis(arr: np.ndarray) -> Dict[str, Any]:
@@ -10,12 +10,16 @@ def independence_analysis(arr: np.ndarray) -> Dict[str, Any]:
     max_lag = min(50, len(arr) // 4)
     autocorrs = []
     lags = list(range(1, max_lag + 1))
-    for lag in lags:
-        if lag < len(arr):
-            corr = np.corrcoef(arr[:-lag], arr[lag:])[0, 1]
-            autocorrs.append(float(corr) if not np.isnan(corr) else 0.0)
-        else:
-            autocorrs.append(0.0)
+    # Constant series has zero variance; corrcoef divides by std and warns. ACF is 0/undefined.
+    if len(arr) >= 2 and is_constant_sample(arr):
+        autocorrs = [0.0] * len(lags)
+    else:
+        for lag in lags:
+            if lag < len(arr):
+                corr = np.corrcoef(arr[:-lag], arr[lag:])[0, 1]
+                autocorrs.append(float(corr) if not np.isnan(corr) else 0.0)
+            else:
+                autocorrs.append(0.0)
     lag1_x_arr = arr[:-1]
     lag1_y_arr = arr[1:]
     lag1_x_list, lag1_y_list = downsample(lag1_x_arr, lag1_y_arr, MAX_CHART_POINTS)
