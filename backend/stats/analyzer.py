@@ -61,6 +61,10 @@ class StatsAnalyzer:
         matrix_rank_test_passed = []
         longest_run_test_passed = []
         approximate_entropy_test_passed = []
+        frequency_test_passed = []
+        frequency_within_block_test_passed = []
+        cumulative_sums_test_passed = []
+        spectral_test_passed = []
         autocorr_info = []
         all_ecdf_data = []
 
@@ -98,6 +102,10 @@ class StatsAnalyzer:
             matrix_rank_test_passed.append(nist_results.get("binary_matrix_rank_test", {}).get("passed", False))
             longest_run_test_passed.append(nist_results.get("longest_run_of_ones_test", {}).get("passed", False))
             approximate_entropy_test_passed.append(nist_results.get("approximate_entropy_test", {}).get("passed", False))
+            frequency_test_passed.append(nist_results.get("frequency_test", {}).get("passed", False))
+            frequency_within_block_test_passed.append(nist_results.get("frequency_within_block_test", {}).get("passed", False))
+            cumulative_sums_test_passed.append(nist_results.get("cumulative_sums_test", {}).get("passed", False))
+            spectral_test_passed.append(nist_results.get("spectral_test", {}).get("passed", False))
 
             max_lag = min(50, len(arr) // 4)
             autocorrs = []
@@ -170,6 +178,10 @@ class StatsAnalyzer:
         matrix_rank_test_passed_count = int(sum(matrix_rank_test_passed))
         longest_run_test_passed_count = int(sum(longest_run_test_passed))
         approximate_entropy_test_passed_count = int(sum(approximate_entropy_test_passed))
+        frequency_test_passed_count = int(sum(frequency_test_passed))
+        frequency_within_block_test_passed_count = int(sum(frequency_within_block_test_passed))
+        cumulative_sums_test_passed_count = int(sum(cumulative_sums_test_passed))
+        spectral_test_passed_count = int(sum(spectral_test_passed))
 
         all_numbers = []
         for run_numbers in runs:
@@ -216,11 +228,19 @@ class StatsAnalyzer:
                 "binary_matrix_rank_test_passed": f"{matrix_rank_test_passed_count}/{num_runs}",
                 "longest_run_of_ones_test_passed": f"{longest_run_test_passed_count}/{num_runs}",
                 "approximate_entropy_test_passed": f"{approximate_entropy_test_passed_count}/{num_runs}",
+                "frequency_test_passed": f"{frequency_test_passed_count}/{num_runs}",
+                "frequency_within_block_test_passed": f"{frequency_within_block_test_passed_count}/{num_runs}",
+                "cumulative_sums_test_passed": f"{cumulative_sums_test_passed_count}/{num_runs}",
+                "spectral_test_passed": f"{spectral_test_passed_count}/{num_runs}",
                 "ks_passed_count": ks_passed_count,
                 "runs_test_passed_count": runs_test_passed_count,
                 "binary_matrix_rank_test_passed_count": matrix_rank_test_passed_count,
                 "longest_run_of_ones_test_passed_count": longest_run_test_passed_count,
-                "approximate_entropy_test_passed_count": approximate_entropy_test_passed_count
+                "approximate_entropy_test_passed_count": approximate_entropy_test_passed_count,
+                "frequency_test_passed_count": frequency_test_passed_count,
+                "frequency_within_block_test_passed_count": frequency_within_block_test_passed_count,
+                "cumulative_sums_test_passed_count": cumulative_sums_test_passed_count,
+                "spectral_test_passed_count": spectral_test_passed_count
             },
             "autocorrelation_table": autocorr_info,
             "ecdf_all_runs": all_ecdf_data,

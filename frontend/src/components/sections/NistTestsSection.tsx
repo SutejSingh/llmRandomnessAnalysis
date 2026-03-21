@@ -17,6 +17,67 @@ const NistTestsSection = ({ analysis }: NistTestsSectionProps) => {
       </p>
 
       <div className="nist-tests-grid">
+        <NistTestCard title={t('nistSection.frequencyTest')} error={nist.frequency_test?.error} passed={nist.frequency_test?.passed}>
+          {!nist.frequency_test?.error && (
+            <table className="test-results-table">
+              <tbody>
+                <tr><td>{t('nistSection.pValue')}</td><td>{nist.frequency_test.p_value?.toFixed(6) || t('basicStats.na')}</td></tr>
+                <tr><td>{t('nistSection.monobitStatistic')}</td><td>{nist.frequency_test.statistic?.toFixed(4) || t('basicStats.na')}</td></tr>
+                <tr><td>{t('nistSection.ones')}</td><td>{nist.frequency_test.ones ?? t('basicStats.na')}</td></tr>
+                <tr><td>{t('nistSection.zeros')}</td><td>{nist.frequency_test.zeros ?? t('basicStats.na')}</td></tr>
+              </tbody>
+            </table>
+          )}
+        </NistTestCard>
+
+        <NistTestCard title={t('nistSection.frequencyWithinBlockTest')} error={nist.frequency_within_block_test?.error} passed={nist.frequency_within_block_test?.passed}>
+          {!nist.frequency_within_block_test?.error && (
+            <table className="test-results-table">
+              <tbody>
+                <tr><td>{t('nistSection.pValue')}</td><td>{nist.frequency_within_block_test.p_value?.toFixed(6) || t('basicStats.na')}</td></tr>
+                <tr><td>{t('nistSection.chiSquareStatistic')}</td><td>{nist.frequency_within_block_test.statistic?.toFixed(4) || t('basicStats.na')}</td></tr>
+                <tr><td>{t('nistSection.numberOfBlocks')}</td><td>{nist.frequency_within_block_test.num_blocks ?? t('basicStats.na')}</td></tr>
+                <tr><td>{t('nistSection.blockSize')}</td><td>{nist.frequency_within_block_test.block_size ?? t('basicStats.na')}</td></tr>
+                <tr><td>{t('nistSection.onesPerBlockMin')}</td><td>{nist.frequency_within_block_test.ones_per_block_summary?.min ?? t('basicStats.na')}</td></tr>
+                <tr><td>{t('nistSection.onesPerBlockMax')}</td><td>{nist.frequency_within_block_test.ones_per_block_summary?.max ?? t('basicStats.na')}</td></tr>
+                <tr><td>{t('nistSection.onesPerBlockMean')}</td><td>{nist.frequency_within_block_test.ones_per_block_summary?.mean?.toFixed(2) ?? t('basicStats.na')}</td></tr>
+                {Array.isArray(nist.frequency_within_block_test.ones_per_block_summary?.preview) && nist.frequency_within_block_test.ones_per_block_summary.preview.length > 0 && (
+                  <tr><td>{t('nistSection.onesPerBlockPreview')}</td><td>{nist.frequency_within_block_test.ones_per_block_summary.preview.join(', ')}</td></tr>
+                )}
+              </tbody>
+            </table>
+          )}
+        </NistTestCard>
+
+        <NistTestCard title={t('nistSection.cumulativeSumsTest')} error={nist.cumulative_sums_test?.error} passed={nist.cumulative_sums_test?.passed}>
+          {!nist.cumulative_sums_test?.error && (
+            <table className="test-results-table">
+              <tbody>
+                <tr><td>{t('nistSection.pValue')}</td><td>{nist.cumulative_sums_test.p_value?.toFixed(6) || t('basicStats.na')}</td></tr>
+                <tr><td>{t('nistSection.zStatistic')}</td><td>{nist.cumulative_sums_test.statistic?.toFixed(4) || t('basicStats.na')}</td></tr>
+                <tr><td>{t('nistSection.forwardPValue')}</td><td>{nist.cumulative_sums_test.p_value_forward?.toFixed(6) || t('basicStats.na')}</td></tr>
+                <tr><td>{t('nistSection.forwardZStatistic')}</td><td>{nist.cumulative_sums_test.z_forward?.toFixed(4) || t('basicStats.na')}</td></tr>
+                <tr><td>{t('nistSection.backwardPValue')}</td><td>{nist.cumulative_sums_test.p_value_backward?.toFixed(6) || t('basicStats.na')}</td></tr>
+                <tr><td>{t('nistSection.backwardZStatistic')}</td><td>{nist.cumulative_sums_test.z_backward?.toFixed(4) || t('basicStats.na')}</td></tr>
+              </tbody>
+            </table>
+          )}
+        </NistTestCard>
+
+        <NistTestCard title={t('nistSection.spectralTest')} error={nist.spectral_test?.error} passed={nist.spectral_test?.passed}>
+          {!nist.spectral_test?.error && (
+            <table className="test-results-table">
+              <tbody>
+                <tr><td>{t('nistSection.pValue')}</td><td>{nist.spectral_test.p_value?.toFixed(6) || t('basicStats.na')}</td></tr>
+                <tr><td>{t('nistSection.spectralStatistic')}</td><td>{nist.spectral_test.statistic?.toFixed(4) || t('basicStats.na')}</td></tr>
+                <tr><td>{t('nistSection.spectralTau')}</td><td>{nist.spectral_test.tau?.toFixed(4) || t('basicStats.na')}</td></tr>
+                <tr><td>{t('nistSection.spectralExpectedPeaks')}</td><td>{nist.spectral_test.n0?.toFixed(2) || t('basicStats.na')}</td></tr>
+                <tr><td>{t('nistSection.spectralObservedPeaks')}</td><td>{nist.spectral_test.n1 ?? t('basicStats.na')}</td></tr>
+              </tbody>
+            </table>
+          )}
+        </NistTestCard>
+
         <NistTestCard title={t('nistSection.runsTest')} error={nist.runs_test?.error} passed={nist.runs_test?.passed}>
           {!nist.runs_test?.error && (
             <table className="test-results-table">

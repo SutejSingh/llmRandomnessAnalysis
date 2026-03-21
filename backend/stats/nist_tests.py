@@ -1,9 +1,16 @@
-"""NIST randomness tests on binary representation of numbers."""
+"""NIST randomness tests on binary representation of numbers.
+
+These tests are intended to follow NIST SP 800-22 Rev. 1a-style definitions
+for binary sequences, using significance alpha=0.01.
+"""
+
 import struct
+from typing import Any, Dict, List
+
 import numpy as np
 from scipy import stats
+from scipy.special import erfc, gammaincc
 from scipy.stats import chi2
-from typing import Dict, Any, List
 
 
 def numbers_to_binary(numbers: np.ndarray) -> List[int]:
@@ -44,6 +51,158 @@ def runs_test(binary_sequence: List[int]) -> Dict[str, Any]:
         "ones": int(ones),
         "zeros": int(zeros),
         "passed": bool(passed)
+    }
+
+
+def frequency_test(binary_sequence: List[int]) -> Dict[str, Any]:
+    """NIST Frequency (Monobit) Test.
+
+    Tests whether the number of ones is approximately n/2.
+    """
+    n = len(binary_sequence)
+    if n < 1:
+        return {"p_value": None, "statistic": None, "passed": False, "error": "Sequence too short"}
+
+    ones = int(sum(binary_sequence))
+    zeros = int(n - ones)
+    # S = (#1 - #0)
+    s_obs = abs(ones - zeros) / np.sqrt(n)
+    p_value = float(erfc(s_obs / np.sqrt(2)))
+    passed = bool(p_value > 0.01)
+    return {
+        "p_value": p_value,
+        "statistic": float(s_obs),
+        "ones": ones,
+        "zeros": zeros,
+        "passed": passed,
+    }
+
+
+def frequency_within_block_test(binary_sequence: List[int], block_size: int = 20) -> Dict[str, Any]:
+    """NIST Frequency Test within a Block.
+
+    Partitions the sequence into non-overlapping blocks of size `block_size`.
+    """
+    n = len(binary_sequence)
+    if n < block_size:
+        return {
+            "p_value": None,
+            "statistic": None,
+            "passed": False,
+            "error": f"Sequence too short (need at least {block_size} bits)",
+        }
+
+    num_blocks = n // block_size
+    if num_blocks < 1:
+        return {"p_value": None, "statistic": None, "passed": False, "error": "Cannot form any blocks"}
+
+    expected_ones = block_size / 2.0
+    ones_per_block: List[int] = []
+    chi_square = 0.0
+    for i in range(num_blocks):
+        start = i * block_size
+        block = binary_sequence[start:start + block_size]
+        ones_block = int(sum(block))
+        ones_per_block.append(ones_block)
+        chi_square += ((ones_block - expected_ones) ** 2)
+
+    # χ² = 4 * Σ (π_i - 0.5)^2 * m = 4/m * Σ (ones_i - m/2)^2
+    chi_square = 4.0 * chi_square / block_size
+    # p = IGAMC(N/2, χ²/2) => chi2.sf(χ², df=N)
+    p_value = float(chi2.sf(chi_square, df=num_blocks))
+    passed = bool(p_value > 0.01)
+    ones_preview = ones_per_block[:10]
+    ones_tail_preview = ones_per_block[-10:] if len(ones_per_block) > 20 else []
+    ones_summary = {
+        "min": int(min(ones_per_block)) if ones_per_block else None,
+        "max": int(max(ones_per_block)) if ones_per_block else None,
+        "mean": float(np.mean(ones_per_block)) if ones_per_block else None,
+        "preview": [int(x) for x in ones_preview],
+        "tail_preview": [int(x) for x in ones_tail_preview] if ones_tail_preview else [],
+    }
+    return {
+        "p_value": p_value,
+        "statistic": float(chi_square),
+        "num_blocks": int(num_blocks),
+        "block_size": int(block_size),
+        "ones_per_block_summary": ones_summary,
+        "passed": passed,
+    }
+
+
+def _cumulative_sums_p_value(binary_sequence_pm1: np.ndarray) -> Dict[str, Any]:
+    """Compute CUSUM p-value for one direction given Z_i in {-1, +1}."""
+    n = int(len(binary_sequence_pm1))
+    if n < 1:
+        return {"p_value": None, "statistic": None, "passed": False, "error": "Sequence too short"}
+
+    cumulative = np.cumsum(binary_sequence_pm1)
+    abs_max = float(np.max(np.abs(cumulative)))
+    if abs_max == 0.0:
+        return {
+            "p_value": 1.0,
+            "statistic": 0.0,
+            "passed": True,
+        }
+
+    sqrt_n = float(np.sqrt(n))
+    z = abs_max
+    # NIST uses the distribution of the maximum absolute partial sum.
+    # This is implemented here using the summation form found in NIST SP 800-22 Rev 1a reference code.
+    start1 = int(np.floor(0.25 * np.floor(-n / z + 1)))
+    end1 = int(np.floor(0.25 * np.floor(n / z - 1)))
+    terms_one = []
+    for k in range(start1, end1 + 1):
+        a = stats.norm.cdf((4 * k - 1) * z / sqrt_n)
+        b = stats.norm.cdf((4 * k + 1) * z / sqrt_n)
+        terms_one.append(b - a)
+
+    start2 = int(np.floor(0.25 * np.floor(-n / z - 3)))
+    end2 = int(np.floor(0.25 * np.floor(n / z) - 1))
+    terms_two = []
+    for k in range(start2, end2 + 1):
+        a = stats.norm.cdf((4 * k + 1) * z / sqrt_n)
+        b = stats.norm.cdf((4 * k + 3) * z / sqrt_n)
+        terms_two.append(b - a)
+
+    p_value = float(1.0 - float(np.sum(terms_one)) + float(np.sum(terms_two)))
+    # Numerics: clamp to [0,1]
+    p_value = max(0.0, min(1.0, p_value))
+    passed = bool(p_value > 0.01)
+    return {"p_value": p_value, "statistic": z, "passed": passed}
+
+
+def cumulative_sums_test(binary_sequence: List[int]) -> Dict[str, Any]:
+    """NIST Cumulative Sums Test (CUSUM).
+
+    Computes the test for both the forward and backward directions and
+    aggregates pass/fail accordingly.
+    """
+    n = len(binary_sequence)
+    if n < 1:
+        return {"p_value": None, "statistic": None, "passed": False, "error": "Sequence too short"}
+
+    binary_sequence_pm1 = np.array([1 if b == 1 else -1 for b in binary_sequence], dtype=float)
+    forward = _cumulative_sums_p_value(binary_sequence_pm1)
+    backward = _cumulative_sums_p_value(binary_sequence_pm1[::-1])
+
+    p_forward = forward.get("p_value")
+    p_backward = backward.get("p_value")
+    z_forward = forward.get("statistic")
+    z_backward = backward.get("statistic")
+
+    # Aggregate: consider the sequence to fail if either direction fails.
+    passed = bool((p_forward is not None and p_forward > 0.01) and (p_backward is not None and p_backward > 0.01))
+    p_value = min(float(p_forward), float(p_backward)) if p_forward is not None and p_backward is not None else None
+
+    return {
+        "p_value": p_value,
+        "statistic": float(max(z_forward, z_backward)) if z_forward is not None and z_backward is not None else None,
+        "p_value_forward": float(p_forward) if p_forward is not None else None,
+        "p_value_backward": float(p_backward) if p_backward is not None else None,
+        "z_forward": float(z_forward) if z_forward is not None else None,
+        "z_backward": float(z_backward) if z_backward is not None else None,
+        "passed": passed,
     }
 
 
@@ -151,54 +310,68 @@ def longest_run_of_ones_test(binary_sequence: List[int], block_size: int = 128) 
 
 
 def approximate_entropy_test(binary_sequence: List[int], m: int = 2) -> Dict[str, Any]:
-    """NIST Approximate Entropy Test."""
-    n = len(binary_sequence)
-    min_required = 10 * (2 ** m)
+    """NIST Approximate Entropy Test (ApEn) for binary sequences.
+
+    Uses circular overlapping patterns (i.e., the sequence is wrapped so there
+    are exactly N overlapping m-bit (and (m+1)-bit) patterns, where N is the
+    sequence length).
+    """
+    n = int(len(binary_sequence))
+    min_required = int(10 * (2 ** m))
     if n < min_required:
-        return {"p_value": None, "statistic": None, "passed": False, "error": f"Sequence too short (need at least {min_required} bits for m={m})"}
+        return {
+            "p_value": None,
+            "statistic": None,
+            "passed": False,
+            "error": f"Sequence too short (need at least {min_required} bits for m={m})",
+        }
 
-    def count_patterns(pattern_length):
-        pattern_counts = {}
-        num_patterns = n - pattern_length + 1
-        for i in range(num_patterns):
-            pattern = tuple(binary_sequence[i:i + pattern_length])
-            pattern_counts[pattern] = pattern_counts.get(pattern, 0) + 1
-        return pattern_counts, num_patterns
+    # Append m+1 bits so that slicing of length m and m+1 patterns is circular.
+    bits = list(binary_sequence)  # ensure indexable
+    bits_aug = bits + bits[:m + 1]
 
-    patterns_m, num_patterns_m = count_patterns(m)
-    patterns_m1, num_patterns_m1 = count_patterns(m + 1)
+    vobs_m = np.zeros(2 ** m, dtype=int)
+    vobs_m1 = np.zeros(2 ** (m + 1), dtype=int)
 
-    def calculate_phi(pattern_counts, num_patterns):
-        phi = 0.0
-        for pattern, count in pattern_counts.items():
-            if count > 0:
-                prob = count / num_patterns
-                phi += prob * np.log(prob + 1e-10)
-        return phi
+    for i in range(n):
+        idx_m = 0
+        for j in range(m):
+            idx_m = (idx_m << 1) | bits_aug[i + j]
+        vobs_m[idx_m] += 1
 
-    phi_m = calculate_phi(patterns_m, num_patterns_m)
-    phi_m1 = calculate_phi(patterns_m1, num_patterns_m1)
+        idx_m1 = 0
+        for j in range(m + 1):
+            idx_m1 = (idx_m1 << 1) | bits_aug[i + j]
+        vobs_m1[idx_m1] += 1
+
+    # phi(m) = sum_{i=0}^{2^m-1} (C_i/N)*ln(C_i/N)
+    # (terms where C_i=0 contribute 0).
+    counts_m = vobs_m.astype(float)
+    counts_m1 = vobs_m1.astype(float)
+    p_m = counts_m / n
+    p_m1 = counts_m1 / n
+
+    mask_m = counts_m > 0
+    mask_m1 = counts_m1 > 0
+    phi_m = float(np.sum(p_m[mask_m] * np.log(p_m[mask_m])))
+    phi_m1 = float(np.sum(p_m1[mask_m1] * np.log(p_m1[mask_m1])))
+
     ap_en = phi_m - phi_m1
-    ln2 = np.log(2)
-    chi2_stat = 2.0 * n * (ln2 - ap_en)
-    if chi2_stat < 0:
-        chi2_stat = 0.0
-    df = 2 ** m
-    p_value = float(1 - chi2.cdf(chi2_stat, df))
-    passed = p_value > 0.01
+    x_obs = float(2.0 * n * (np.log(2.0) - ap_en))
+    x_obs = max(0.0, x_obs)  # numeric safety
+    p_value = float(gammaincc(2 ** (m - 1), x_obs / 2.0))
+    passed = bool(p_value > 0.01)
     return {
-        "p_value": float(p_value),
-        "statistic": float(chi2_stat),
+        "p_value": p_value,
+        "statistic": x_obs,
         "approximate_entropy": float(ap_en),
-        "phi_m": float(phi_m),
-        "phi_m1": float(phi_m1),
+        "phi_m": phi_m,
+        "phi_m1": phi_m1,
         "pattern_length_m": int(m),
         "pattern_length_m1": int(m + 1),
-        "num_patterns_m": int(num_patterns_m),
-        "num_patterns_m1": int(num_patterns_m1),
-        "unique_patterns_m": int(len(patterns_m)),
-        "unique_patterns_m1": int(len(patterns_m1)),
-        "passed": bool(passed)
+        "unique_patterns_m": int(np.count_nonzero(vobs_m)),
+        "unique_patterns_m1": int(np.count_nonzero(vobs_m1)),
+        "passed": passed,
     }
 
 
@@ -206,9 +379,40 @@ def nist_tests(arr: np.ndarray) -> Dict[str, Any]:
     """Perform NIST statistical tests on binary representation of numbers."""
     binary_sequence = numbers_to_binary(arr)
     return {
+        "frequency_test": frequency_test(binary_sequence),
+        "frequency_within_block_test": frequency_within_block_test(binary_sequence),
+        "cumulative_sums_test": cumulative_sums_test(binary_sequence),
+        "spectral_test": spectral_test(binary_sequence),
         "runs_test": runs_test(binary_sequence),
         "binary_matrix_rank_test": binary_matrix_rank_test(binary_sequence),
         "longest_run_of_ones_test": longest_run_of_ones_test(binary_sequence),
         "approximate_entropy_test": approximate_entropy_test(binary_sequence),
         "binary_sequence_length": len(binary_sequence)
+    }
+
+
+def spectral_test(binary_sequence: List[int]) -> Dict[str, Any]:
+    """NIST Discrete Fourier Transform (DFT) / Spectral Test."""
+    n = len(binary_sequence)
+    if n < 2:
+        return {"p_value": None, "statistic": None, "passed": False, "error": "Sequence too short"}
+
+    x = [1 if b == 1 else -1 for b in binary_sequence]
+    spectral = np.fft.fft(x)
+    m = int(np.floor(n / 2))
+    modulus = np.abs(spectral[:m])
+
+    tau = float(np.sqrt(np.log(1 / 0.05) * n))
+    n0 = 0.95 * (n / 2.0)
+    n1 = int(np.sum(modulus < tau))
+    d = (n1 - n0) / np.sqrt(n * 0.95 * 0.05 / 4.0)
+    p_value = float(erfc(abs(d) / np.sqrt(2)))
+    passed = bool(p_value > 0.01)
+    return {
+        "p_value": p_value,
+        "statistic": float(d),
+        "tau": tau,
+        "n0": float(n0),
+        "n1": int(n1),
+        "passed": passed,
     }
