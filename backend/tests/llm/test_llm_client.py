@@ -131,6 +131,23 @@ class TestGetApiKey:
             assert client._get_api_key("unknown", provided_key=None) is None
 
 
+class TestOpenAiMaxOutputKw:
+    def test_gpt5_uses_max_completion_tokens(self):
+        c = LLMClient()
+        assert c._openai_max_output_kw("gpt-5.4", 100) == {"max_completion_tokens": 100}
+        assert c._openai_max_output_kw("GPT-5-mini", 50) == {"max_completion_tokens": 50}
+
+    def test_o_series_uses_max_completion_tokens(self):
+        c = LLMClient()
+        assert c._openai_max_output_kw("o1-preview", 10) == {"max_completion_tokens": 10}
+        assert c._openai_max_output_kw("o3-mini", 10) == {"max_completion_tokens": 10}
+
+    def test_legacy_models_use_max_tokens(self):
+        c = LLMClient()
+        assert c._openai_max_output_kw("gpt-4o", 50) == {"max_tokens": 50}
+        assert c._openai_max_output_kw("gpt-4-turbo", 50) == {"max_tokens": 50}
+
+
 class TestDefaultPrompts:
     def test_has_all_providers(self):
         client = LLMClient()

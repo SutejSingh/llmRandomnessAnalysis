@@ -1,5 +1,6 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { t } from '../../i18n'
+import { formatFixed } from '../../utils/formatStat'
 
 interface StationaritySectionProps {
   analysis: any
@@ -16,6 +17,8 @@ const StationaritySection = ({ analysis, view, onViewChange, chartHeight = 250 }
   })) || []
 
   if (!analysis.stationarity) return null
+
+  const na = t('basicStats.na')
 
   return (
     <div className="stats-section">
@@ -60,10 +63,10 @@ const StationaritySection = ({ analysis, view, onViewChange, chartHeight = 250 }
             {analysis.stationarity.chunks.map((chunk: any) => (
               <div key={chunk.chunk} className="chunk-card">
                 <h5>{t('stationaritySection.chunkN', { n: chunk.chunk })}</h5>
-                <p>{t('basicStats.mean')}: {chunk.mean.toFixed(4)}</p>
-                <p>{t('basicStats.stdDev')}: {chunk.std.toFixed(4)}</p>
-                <p>{t('basicStats.min')}: {chunk.min.toFixed(4)}</p>
-                <p>{t('basicStats.max')}: {chunk.max.toFixed(4)}</p>
+                <p>{t('basicStats.mean')}: {formatFixed(chunk.mean, 4, na)}</p>
+                <p>{t('basicStats.stdDev')}: {formatFixed(chunk.std, 4, na)}</p>
+                <p>{t('basicStats.min')}: {formatFixed(chunk.min, 4, na)}</p>
+                <p>{t('basicStats.max')}: {formatFixed(chunk.max, 4, na)}</p>
               </div>
             ))}
           </div>

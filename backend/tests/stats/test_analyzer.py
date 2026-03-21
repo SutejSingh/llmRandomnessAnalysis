@@ -1,8 +1,11 @@
 """Tests for backend/stats/analyzer.py - StatsAnalyzer.analyze, analyze_multi_run, _convert_numpy_types."""
+import json
+
 import numpy as np
 import pytest
 
 from stats.analyzer import StatsAnalyzer
+from stats.utils import convert_numpy_types
 
 
 class TestStatsAnalyzerAnalyze:
@@ -221,3 +224,18 @@ class TestConvertNumpyTypes:
         analyzer = StatsAnalyzer()
         assert analyzer._convert_numpy_types(np.int32(42)) == 42
         assert analyzer._convert_numpy_types(np.float64(3.14)) == 3.14
+
+    def test_nan_inf_converted_for_json(self):
+        """JSON cannot encode NaN/Inf; convert_numpy_types maps them to None."""
+        assert convert_numpy_types(float("nan")) is None
+        assert convert_numpy_types(float("inf")) is None
+        assert convert_numpy_types(float("-inf")) is None
+        assert convert_numpy_types(np.float64("nan")) is None
+        payload = convert_numpy_types({"skew": float("nan"), "ok": 1.0})
+        assert json.loads(json.dumps(payload)) == {"skew": None, "ok": 1.0}
+
+    def test_analyze_result_json_serializable(self):
+        """Full analyze() output must encode to JSON (non-finite floats sanitized)."""
+        analyzer = StatsAnalyzer()
+        out = analyzer.analyze([0.25, 0.75, 0.1, 0.9], provider="test")
+        json.dumps(out)

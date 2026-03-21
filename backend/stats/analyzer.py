@@ -12,7 +12,7 @@ from . import independence as independence_mod
 from . import stationarity as stationarity_mod
 from . import spectral as spectral_mod
 from . import nist_tests as nist_tests_mod
-from .utils import MAX_CHART_POINTS
+from .utils import MAX_CHART_POINTS, is_constant_sample
 
 
 class StatsAnalyzer:
@@ -39,7 +39,7 @@ class StatsAnalyzer:
             "spectral": spectral_mod.spectral_analysis(arr),
             "nist_tests": nist_tests_mod.nist_tests(arr),
         }
-        return analysis
+        return self._convert_numpy_types(analysis)
 
     def analyze_multi_run(self, runs: List[List[float]], provider: str, num_runs: int) -> Dict[str, Any]:
         """Perform comprehensive statistical analysis across multiple runs."""
@@ -73,8 +73,13 @@ class StatsAnalyzer:
 
             run_mean = float(np.mean(arr))
             run_std = float(np.std(arr))
-            run_skewness = float(stats.skew(arr))
-            run_kurtosis = float(stats.kurtosis(arr))
+            # Same as basic_stats: skew/kurtosis undefined for degenerate spread → NaN → null in JSON.
+            if is_constant_sample(arr):
+                run_skewness = float("nan")
+                run_kurtosis = float("nan")
+            else:
+                run_skewness = float(stats.skew(arr))
+                run_kurtosis = float(stats.kurtosis(arr))
             means.append(run_mean)
             std_devs.append(run_std)
             skewnesses.append(run_skewness)
@@ -82,8 +87,11 @@ class StatsAnalyzer:
 
             min_val = float(arr.min())
             max_val = float(arr.max())
-            ks_stat, ks_p = kstest(arr, 'uniform', args=(min_val, max_val - min_val))
-            ks_passed.append(ks_p > 0.05)
+            if is_constant_sample(arr):
+                ks_stat, ks_p = 0.0, float("nan")
+            else:
+                ks_stat, ks_p = kstest(arr, 'uniform', args=(min_val, max_val - min_val))
+            ks_passed.append(bool(np.isfinite(ks_p) and ks_p > 0.05))
 
             nist_results = nist_tests_mod.nist_tests(arr)
             runs_test_passed.append(nist_results.get("runs_test", {}).get("passed", False))
@@ -95,20 +103,24 @@ class StatsAnalyzer:
             autocorrs = []
             significant_lags = []
             max_corr = 0.0
-            for lag in range(1, max_lag + 1):
-                if lag < len(arr):
-                    corr = np.corrcoef(arr[:-lag], arr[lag:])[0, 1]
-                    if not np.isnan(corr):
-                        abs_corr = abs(corr)
-                        autocorrs.append(float(corr))
-                        if abs_corr > max_corr:
-                            max_corr = abs_corr
-                        if abs_corr > 0.2:
-                            significant_lags.append(lag)
+            if is_constant_sample(arr):
+                for _lag in range(1, max_lag + 1):
+                    autocorrs.append(0.0)
+            else:
+                for lag in range(1, max_lag + 1):
+                    if lag < len(arr):
+                        corr = np.corrcoef(arr[:-lag], arr[lag:])[0, 1]
+                        if not np.isnan(corr):
+                            abs_corr = abs(corr)
+                            autocorrs.append(float(corr))
+                            if abs_corr > max_corr:
+                                max_corr = abs_corr
+                            if abs_corr > 0.2:
+                                significant_lags.append(lag)
+                        else:
+                            autocorrs.append(0.0)
                     else:
                         autocorrs.append(0.0)
-                else:
-                    autocorrs.append(0.0)
             autocorr_info.append({
                 "run": int(run_idx + 1),
                 "significant_lags": [int(lag) for lag in significant_lags] if significant_lags else ["None"],
@@ -181,7 +193,7 @@ class StatsAnalyzer:
 
         n_kde = min(MAX_CHART_POINTS, len(all_numbers_arr) + 1)
         combined_kde_x = np.linspace(min_val, max_val, n_kde)
-        combined_kde_y = stats.gaussian_kde(all_numbers_arr)(combined_kde_x)
+        combined_kde_y = distribution_mod.gaussian_kde_density(all_numbers_arr, combined_kde_x)
         combined_kde = {
             "x": [float(x) for x in combined_kde_x.tolist()],
             "y": [float(y) for y in combined_kde_y.tolist()]

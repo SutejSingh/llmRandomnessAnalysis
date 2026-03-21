@@ -3,6 +3,8 @@ import numpy as np
 from scipy import stats
 from typing import Dict
 
+from .utils import is_constant_sample
+
 
 def basic_stats(arr: np.ndarray) -> Dict[str, float]:
     """Calculate basic descriptive statistics (sample variance/std with ddof=1)."""
@@ -23,6 +25,12 @@ def basic_stats(arr: np.ndarray) -> Dict[str, float]:
         "q50": q50,
         "q75": float(np.percentile(arr, 75, method="higher")),
         "q95": float(np.percentile(arr, 95, method="higher")),
-        "skewness": float(stats.skew(arr)),
-        "kurtosis": float(stats.kurtosis(arr))
+        # Degenerate spread: sample skew/kurtosis divide by powers of s; undefined when s≈0.
+        # Report NaN (JSON null after conversion) so UI shows N/A, not a misleading 0.
+        "skewness": (
+            float("nan") if is_constant_sample(arr) else float(stats.skew(arr))
+        ),
+        "kurtosis": (
+            float("nan") if is_constant_sample(arr) else float(stats.kurtosis(arr))
+        ),
     }

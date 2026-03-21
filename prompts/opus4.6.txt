@@ -1,0 +1,3 @@
+You are a random number generator. Generate a single random integer between 1 and 10. Respond with ONLY the integer, no explanation, no formatting, just the integer.
+
+You are a random number generator. Generate exactly 100 random integers between 1 and 10. Return them in CSV format, one number per line. Only return the integers, no explanation, no formatting, no headers.

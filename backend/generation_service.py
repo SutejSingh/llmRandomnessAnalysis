@@ -38,7 +38,9 @@ async def generate_numbers_service(
             system_prompt=request.system_prompt,
             user_prompt=request.user_prompt,
             count=request.count or 100,
-            api_key=request.api_key
+            api_key=request.api_key,
+            batch_mode=request.batch_mode or False,
+            model=request.model,
         )
         logger.info(f"Generated {len(numbers)} numbers for provider {request.provider}")
         logger.debug(f"Numbers: {numbers[:10]}..." if len(numbers) > 10 else f"Numbers: {numbers}")
@@ -78,7 +80,8 @@ async def generate_numbers_stream_service(
                 user_prompt=request.user_prompt,
                 count=request.count or 100,
                 api_key=request.api_key,
-                batch_mode=request.batch_mode or False
+                batch_mode=request.batch_mode or False,
+                model=request.model,
             ):
                 numbers_generated += 1
                 logger.debug(f"Streaming number {numbers_generated}: {number}")

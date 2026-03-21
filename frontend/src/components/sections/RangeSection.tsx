@@ -1,5 +1,6 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { t } from '../../i18n'
+import { formatFixed } from '../../utils/formatStat'
 
 interface RangeSectionProps {
   analysis: any
@@ -11,6 +12,9 @@ const RangeSection = ({ analysis, view, onViewChange }: RangeSectionProps) => {
   const ecdfData = analysis.range_behavior?.ecdf?.x?.map((x: number, idx: number) => ({ x, y: analysis.range_behavior.ecdf.y[idx] })) || []
 
   if (!analysis.range_behavior) return null
+
+  const na = t('basicStats.na')
+  const b = analysis.range_behavior.boundaries
 
   return (
     <div className="stats-section">
@@ -24,10 +28,10 @@ const RangeSection = ({ analysis, view, onViewChange }: RangeSectionProps) => {
         <div className="boundary-info">
           <div className="info-card">
             <h4>{t('rangeSection.boundaryStatistics')}</h4>
-            <p>{t('basicStats.min')}: {analysis.range_behavior.boundaries.min.toFixed(4)}</p>
-            <p>{t('basicStats.max')}: {analysis.range_behavior.boundaries.max.toFixed(4)}</p>
-            <p>{t('rangeSection.nearMin', { count: analysis.range_behavior.boundaries.near_min_count, pct: analysis.range_behavior.boundaries.near_min_pct.toFixed(4) })}</p>
-            <p>{t('rangeSection.nearMax', { count: analysis.range_behavior.boundaries.near_max_count, pct: analysis.range_behavior.boundaries.near_max_pct.toFixed(4) })}</p>
+            <p>{t('basicStats.min')}: {formatFixed(b.min, 4, na)}</p>
+            <p>{t('basicStats.max')}: {formatFixed(b.max, 4, na)}</p>
+            <p>{t('rangeSection.nearMin', { count: b.near_min_count, pct: formatFixed(b.near_min_pct, 4, na) })}</p>
+            <p>{t('rangeSection.nearMax', { count: b.near_max_count, pct: formatFixed(b.near_max_pct, 4, na) })}</p>
           </div>
         </div>
       )}

@@ -53,6 +53,11 @@ class TestBasicStats:
         assert isinstance(out["skewness"], (int, float))
         assert isinstance(out["kurtosis"], (int, float))
 
+    def test_constant_data_skew_kurtosis_nan(self):
+        arr = np.array([7.0] * 50)
+        out = basic_stats_mod.basic_stats(arr)
+        assert np.isnan(out["skewness"]) and np.isnan(out["kurtosis"])
+
     def test_empty_array_raises(self):
         arr = np.array([])
         with pytest.raises(Exception):  # np.mean([]) or percentile can raise

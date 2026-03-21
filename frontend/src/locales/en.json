@@ -2,17 +2,20 @@
   "app": {
     "title": "LLM Random Number Analysis",
     "retryAnalysis": "Retry Analysis",
-    "numbersGeneratedButAnalysisNotAvailable": "Numbers generated but analysis not available. Runs: {{current}}/{{total}}",
+    "numbersGeneratedButAnalysisNotAvailable": "Numbers were generated but analysis could not be loaded. Runs: {{current}}/{{total}}",
     "runLengths": "Run lengths: {{list}}",
-    "errorPrefix": "Error: "
+    "errorPrefix": "Error: ",
+    "errorModalTitle": "Something went wrong",
+    "errorModalClose": "Close"
   },
   "controlPanel": {
     "expandControls": "Expand controls",
     "collapseControls": "Collapse controls",
     "controls": "Controls",
     "llmProvider": "LLM Provider",
-    "providerOpenai": "OpenAI (GPT-4)",
-    "providerAnthropic": "Anthropic (Claude)",
+    "model": "Model",
+    "providerOpenai": "OpenAI",
+    "providerAnthropic": "Anthropic",
     "providerDeepseek": "DeepSeek",
     "numberCount": "Number Count",
     "numberCountBatchTitle": "Number count is specified in the system prompt when using batch mode",
