@@ -1,7 +1,33 @@
 """LaTeX table generation for the PDF report."""
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
 from .common import escape_latex
+
+
+def _latex_float(value: Any, precision: int = 6) -> str:
+    """Format a numeric cell for LaTeX; N/A for None/NaN (e.g. JSON after convert_numpy_types)."""
+    if value is None:
+        return "N/A"
+    try:
+        f = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    if f != f:  # NaN
+        return "N/A"
+    return f"{f:.{precision}f}"
+
+
+def _latex_cv_percent(value: Any) -> str:
+    """Format CV as a percentage for LaTeX; N/A if missing/invalid."""
+    if value is None:
+        return "N/A"
+    try:
+        f = float(value)
+    except (TypeError, ValueError):
+        return "N/A"
+    if f != f:
+        return "N/A"
+    return f"{f * 100:.2f}\\%"
 
 
 def generate_aggregate_stats_table(analysis: Dict[str, Any]) -> str:
@@ -19,7 +45,10 @@ def generate_aggregate_stats_table(analysis: Dict[str, Any]) -> str:
             mean_val = agg_stats[metric].get("mean", 0)
             std_dev_val = agg_stats[metric].get("std_dev", 0)
             range_val = agg_stats[metric].get("range", 0)
-            latex += f"{metric_name} & {mean_val:.6f} & {std_dev_val:.6f} & {range_val:.6f} \\\\\n"
+            latex += (
+                f"{metric_name} & {_latex_float(mean_val)} & {_latex_float(std_dev_val)} & "
+                f"{_latex_float(range_val)} \\\\\n"
+            )
     latex += r"\bottomrule" + "\n"
     latex += r"\end{tabular}" + "\n"
     latex += r"\caption{Aggregate Statistics Across Runs}" + "\n"
@@ -42,17 +71,27 @@ def generate_per_run_stats_table(analysis: Dict[str, Any]) -> str:
         is_uniform = dist.get("is_uniform", {})
         mean_val = basic_stats.get("mean", 0)
         mode_val = basic_stats.get("mode", 0)
-        if mode_val == "N/A" or (isinstance(mode_val, float) and (mode_val != mode_val)):
+        if (
+            mode_val is None
+            or mode_val == "N/A"
+            or (isinstance(mode_val, float) and (mode_val != mode_val))
+        ):
             mode_str = "N/A"
         else:
-            mode_str = f"{mode_val:.4f}"
+            mode_str = _latex_float(mode_val, 4)
         std_dev = basic_stats.get("std", 0)
         min_val = basic_stats.get("min", 0)
         max_val = basic_stats.get("max", 0)
         range_val = max_val - min_val
         ks_p = is_uniform.get("ks_p", 0)
-        ks_pass = "Yes" if ks_p > 0.05 else "No"
-        latex += f"{idx + 1} & {mean_val:.4f} & {mode_str} & {std_dev:.4f} & {min_val:.4f} & {max_val:.4f} & {range_val:.4f} & {ks_pass} \\\\\n"
+        if isinstance(ks_p, (int, float)) and ks_p == ks_p:
+            ks_pass = "Yes" if ks_p > 0.05 else "No"
+        else:
+            ks_pass = "N/A"
+        latex += (
+            f"{idx + 1} & {_latex_float(mean_val, 4)} & {mode_str} & {_latex_float(std_dev, 4)} & "
+            f"{_latex_float(min_val, 4)} & {_latex_float(max_val, 4)} & {_latex_float(range_val, 4)} & {ks_pass} \\\\\n"
+        )
     latex += r"\bottomrule" + "\n"
     latex += r"\end{tabular}" + "\n"
     latex += r"\caption{Per-Run Statistics Summary}" + "\n"
@@ -79,7 +118,7 @@ def generate_autocorr_table(analysis: Dict[str, Any]) -> str:
                 lags_str += "..."
         else:
             lags_str = "None"
-        latex += f"{run} & {lags_str} & {max_corr:.6f} \\\\\n"
+        latex += f"{run} & {lags_str} & {_latex_float(max_corr)} \\\\\n"
     latex += r"\bottomrule" + "\n"
     latex += r"\end{tabular}" + "\n"
     latex += r"\caption{Autocorrelation Analysis by Run}" + "\n"
@@ -106,12 +145,16 @@ def generate_distribution_deviation_tables(analysis: Dict[str, Any]) -> str:
             latex += r"\midrule" + "\n"
             if ks:
                 m, s, cv = ks.get("mean", 0), ks.get("std_dev", 0), ks.get("cv", 0)
-                cv_pct = f"{cv * 100:.2f}\\%" if cv is not None else "N/A"
-                latex += f"Max vertical deviation (K-S statistic) & {m:.6f} & {s:.6f} & {cv_pct} \\\\\n"
+                cv_pct = _latex_cv_percent(cv)
+                latex += (
+                    f"Max vertical deviation (K-S statistic) & {_latex_float(m)} & {_latex_float(s)} & {cv_pct} \\\\\n"
+                )
             if mad:
                 m, s, cv = mad.get("mean", 0), mad.get("std_dev", 0), mad.get("cv", 0)
-                cv_pct = f"{cv * 100:.2f}\\%" if cv is not None else "N/A"
-                latex += f"Mean absolute deviation (MAD) & {m:.6f} & {s:.6f} & {cv_pct} \\\\\n"
+                cv_pct = _latex_cv_percent(cv)
+                latex += (
+                    f"Mean absolute deviation (MAD) & {_latex_float(m)} & {_latex_float(s)} & {cv_pct} \\\\\n"
+                )
             latex += r"\bottomrule" + "\n"
             latex += r"\end{tabular}" + "\n"
             latex += r"\caption{ECDF Deviation (Uniformity)}" + "\n"
@@ -128,7 +171,7 @@ def generate_distribution_deviation_tables(analysis: Dict[str, Any]) -> str:
             latex += r"\midrule" + "\n"
             for i, label in enumerate(labels):
                 val = means[i] if i < len(means) else 0
-                latex += f"{label} & {val:.6f} \\\\\n"
+                latex += f"{label} & {_latex_float(val)} \\\\\n"
             latex += r"\bottomrule" + "\n"
             latex += r"\end{tabular}" + "\n"
             latex += r"\caption{Regional ECDF Deviation}" + "\n"
@@ -146,10 +189,12 @@ def generate_distribution_deviation_tables(analysis: Dict[str, Any]) -> str:
             latex += r"\midrule" + "\n"
             if r2:
                 m, s = r2.get("mean", 0), r2.get("std_dev", 0)
-                latex += f"R$^2$ (coefficient of determination) & {m:.6f} & {s:.6f} \\\\\n"
+                latex += (
+                    f"R$^2$ (coefficient of determination) & {_latex_float(m)} & {_latex_float(s)} \\\\\n"
+                )
             if mse:
                 m, s = mse.get("mean", 0), mse.get("std_dev", 0)
-                latex += f"MSE from diagonal & {m:.6f} & {s:.6f} \\\\\n"
+                latex += f"MSE from diagonal & {_latex_float(m)} & {_latex_float(s)} \\\\\n"
             latex += r"\bottomrule" + "\n"
             latex += r"\end{tabular}" + "\n"
             latex += r"\caption{Q-Q Plot Deviation (vs diagonal $y=x$)}" + "\n"

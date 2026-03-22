@@ -161,6 +161,10 @@ class LatexGenerator:
             "binary_matrix_rank_test_passed": nist_pass("binary_matrix_rank_test"),
             "longest_run_of_ones_test_passed": nist_pass("longest_run_of_ones_test"),
             "approximate_entropy_test_passed": nist_pass("approximate_entropy_test"),
+            "frequency_test_passed": nist_pass("frequency_test"),
+            "frequency_within_block_test_passed": nist_pass("frequency_within_block_test"),
+            "cumulative_sums_test_passed": nist_pass("cumulative_sums_test"),
+            "spectral_test_passed": nist_pass("spectral_test"),
         }
         mean_val = basic.get("mean", 0)
         mode_val = basic.get("mode", 0)
@@ -255,6 +259,10 @@ class LatexGenerator:
             "binary_matrix_rank_test_passed": ("NIST Binary Matrix Rank Test", 0.01),
             "longest_run_of_ones_test_passed": ("NIST Longest Run of Ones Test", 0.01),
             "approximate_entropy_test_passed": ("NIST Approximate Entropy Test", 0.01),
+            "frequency_test_passed": ("NIST Frequency (Monobit) Test", 0.01),
+            "frequency_within_block_test_passed": ("NIST Frequency Within a Block Test", 0.01),
+            "cumulative_sums_test_passed": ("NIST Cumulative Sums Test", 0.01),
+            "spectral_test_passed": ("NIST DFT/Spectral Test", 0.01),
         }
         for test_key, (display_name, p_threshold) in test_mapping.items():
             passed_value = test_results.get(test_key, f"0/{num_runs}")
@@ -379,6 +387,14 @@ class LatexGenerator:
         nist_tables = []
         if "runs_test" in nist:
             nist_tables.append(("Runs Test", nist["runs_test"]))
+        if "frequency_test" in nist:
+            nist_tables.append(("Frequency (Monobit) Test", nist["frequency_test"]))
+        if "frequency_within_block_test" in nist:
+            nist_tables.append(("Frequency Within Block Test", nist["frequency_within_block_test"]))
+        if "cumulative_sums_test" in nist:
+            nist_tables.append(("Cumulative Sums Test", nist["cumulative_sums_test"]))
+        if "spectral_test" in nist:
+            nist_tables.append(("DFT / Spectral Test", nist["spectral_test"]))
         if "binary_matrix_rank_test" in nist:
             nist_tables.append(("Binary Matrix Rank Test", nist["binary_matrix_rank_test"]))
         if "approximate_entropy_test" in nist:

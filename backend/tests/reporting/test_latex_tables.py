@@ -26,6 +26,21 @@ class TestGenerateAggregateStatsTable:
         out = latex_tables.generate_aggregate_stats_table(analysis)
         assert r"\begin{tabular}" in out
 
+    def test_none_aggregate_values_constant_runs_skewness_kurtosis(self):
+        """When all runs are constant, skew/kurtosis aggregate stats can be None/NaN -> JSON None."""
+        analysis = {
+            "aggregate_stats": {
+                "mean": {"mean": 5.0, "std_dev": 0.0, "range": 0.0},
+                "mode": {"mean": 5.0, "std_dev": 0.0, "range": 0.0},
+                "std_dev": {"mean": 0.0, "std_dev": 0.0, "range": 0.0},
+                "skewness": {"mean": None, "std_dev": None, "range": None},
+                "kurtosis": {"mean": None, "std_dev": None, "range": None},
+            }
+        }
+        out = latex_tables.generate_aggregate_stats_table(analysis)
+        assert "N/A" in out
+        assert r"\begin{table}" in out
+
 
 class TestGeneratePerRunStatsTable:
     def test_produces_latex(self):
@@ -97,6 +112,20 @@ class TestGenerateDistributionDeviationTables:
         out = latex_tables.generate_distribution_deviation_tables(analysis)
         assert "K-S" in out or "deviation" in out
         assert "R$^2$" in out or "MSE" in out
+
+    def test_none_qq_mean_std_constant_runs(self):
+        """Q-Q aggregate mean/std can be None when runs are degenerate (e.g. all same values)."""
+        analysis = {
+            "distribution_deviation": {
+                "qq": {
+                    "r_squared": {"mean": None, "std_dev": None},
+                    "mse_from_diagonal": {"mean": None, "std_dev": None},
+                },
+            }
+        }
+        out = latex_tables.generate_distribution_deviation_tables(analysis)
+        assert "N/A" in out
+        assert r"\begin{table}" in out
 
 
 class TestGenerateDescriptiveStatsTable:
