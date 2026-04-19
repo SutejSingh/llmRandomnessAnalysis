@@ -1,0 +1,8 @@
+<model>_<model_version_number>_<type_of_request>_<Xruns>_<Yn>
+
+where
+type_of_request ∈ ["batch", "sequential"]
+
+Xruns = X number of runs
+Yn = Y numbers requested per run
+

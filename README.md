@@ -2,6 +2,52 @@
 
 A full-stack application for **generating random numbers using LLMs** (OpenAI, Anthropic, DeepSeek) and **analyzing their statistical properties**. It supports single-run and **multi-run** workflows, **CSV upload/download**, and **PDF report generation** with comprehensive metrics and charts.
 
+## Run locally
+
+**Requirements:** Python 3 with `venv`, Node.js and npm.
+
+There is **no required `.env` file**. The backend uses `python-dotenv` only to load `backend/.env` **if you create one**; otherwise set `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, and/or `DEEPSEEK_API_KEY` in your shell or IDE. Keys are only needed for live LLM generation—you can use **Dummy data** or **CSV upload** without any keys.
+
+Optional env vars:
+
+- **`DUMMY_DATA_FILENAME`** — JSON filename under `backend/data/` (create the folder if needed; default `dummy_data.json`).
+
+1. **One command (from the repository root):**
+
+```bash
+./start.sh
+```
+
+This creates `backend/venv` if missing, installs backend dependencies, starts the API on **http://localhost:8000**, installs frontend dependencies if needed, and runs the Vite dev server on **http://localhost:3000**. Stop both with Ctrl+C.
+
+2. **Manual setup** (alternative to `start.sh`):
+
+**Backend**
+
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate   # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+python main.py
+```
+
+**Frontend** (separate terminal)
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend proxies `/api` to the backend (see `frontend/vite.config.ts`).
+
+**Tests** (optional): from the repository root, with `backend/venv` activated (`source backend/venv/bin/activate`):
+
+```bash
+pytest
+```
+
 ## Features
 
 ### Generation
@@ -34,10 +80,10 @@ A full-stack application for **generating random numbers using LLMs** (OpenAI, A
 
 ### Other
 
-- **Dummy data**: Load pre-recorded single- or multi-run JSON for testing without API keys
+- **Dummy data**: Load pre-recorded single- or multi-run JSON from `backend/data/` for testing without API keys
 - **Collapsible control panel**: Collapse after analysis to focus on results
 
-## Project Structure
+## Project structure
 
 ```
 llmRandomnessAnalysis/
@@ -45,91 +91,59 @@ llmRandomnessAnalysis/
 │   ├── main.py                 # FastAPI app and routes
 │   ├── config.py               # App config and service wiring
 │   ├── models.py               # Pydantic request/response models
+│   ├── model_ids.py            # LLM model id helpers
 │   ├── generation_service.py   # LLM number generation (stream + non-stream)
 │   ├── analysis_service.py     # Single- and multi-run analysis orchestration
-│   ├── stats_analyzer.py       # All statistics and NIST tests
 │   ├── csv_service.py          # CSV export and upload parsing
 │   ├── pdf_service.py          # PDF download endpoint
-│   ├── latex_pdf_generator.py  # LaTeX report generation (tables, charts)
 │   ├── llm_client.py           # OpenAI / Anthropic / DeepSeek clients
-│   ├── dummy_data_service.py   # Dummy data from JSON files
-│   ├── data/                   # Sample/dummy JSON and helpers
-│   ├── requirements.txt
-│   └── .env.example
+│   ├── dummy_data_service.py   # Dummy data from JSON under backend/data/
+│   ├── stats/                  # Statistics and NIST tests (StatsAnalyzer)
+│   │   ├── analyzer.py
+│   │   ├── basic_stats.py
+│   │   ├── distribution.py
+│   │   ├── independence.py
+│   │   ├── range_behavior.py
+│   │   ├── stationarity.py
+│   │   ├── spectral.py
+│   │   ├── nist_tests.py
+│   │   └── utils.py
+│   ├── reporting/              # LaTeX → PDF report generation
+│   │   ├── latex_generator.py
+│   │   ├── latex_tables.py
+│   │   ├── latex_charts.py
+│   │   └── common.py
+│   ├── test_data/              # Sample CSVs for tests or manual checks
+│   ├── tests/                  # pytest suite (mirrors packages above)
+│   └── requirements.txt
 ├── frontend/
 │   ├── src/
-│   │   ├── App.tsx             # State, generate/upload/analyze/PDF flow
+│   │   ├── App.tsx
+│   │   ├── main.tsx
+│   │   ├── i18n.ts
+│   │   ├── constants/          # e.g. llmModels.ts
+│   │   ├── locales/            # en.json
+│   │   ├── utils/
 │   │   ├── components/
-│   │   │   ├── ControlPanel.tsx    # Provider, count, runs, prompts, generate/upload
-│   │   │   ├── NumberStream.tsx     # Number list (streaming or full)
-│   │   │   ├── StatsDashboard.tsx # Tabs and multi vs per-run view
-│   │   │   ├── MultiRunAnalysisView.tsx  # Multi-run tables and charts
-│   │   │   ├── PerRunAnalysisView.tsx    # Single-run sections
-│   │   │   ├── sections/       # BasicStats, Distribution, Range, Independence, Stationarity, Spectral, NIST
+│   │   │   ├── ControlPanel.tsx
+│   │   │   ├── DashboardHeader.tsx
+│   │   │   ├── NumberStream.tsx
+│   │   │   ├── StatsDashboard.tsx
+│   │   │   ├── MultiRunAnalysisView.tsx
+│   │   │   ├── PerRunAnalysisView.tsx
+│   │   │   ├── ErrorModal.tsx
+│   │   │   ├── sections/       # Basic, Distribution, Range, …
 │   │   │   └── charts/         # BoxPlot, OverlaidBoxPlots
 │   │   └── styles/
+│   ├── index.html
 │   ├── package.json
 │   └── vite.config.ts
-├── start.sh                    # Start backend + frontend
+├── real_data/                  # Archived LLM output CSVs (by provider / range)
+├── pytest.ini
+├── prompts.txt
+├── start.sh                    # Start backend + frontend from repo root
 └── README.md
 ```
-
-## Setup
-
-### Backend
-
-1. Go to the backend directory and use a virtual environment (recommended):
-
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-2. Copy environment template and add API keys:
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env`:
-
-```
-OPENAI_API_KEY=your_openai_key
-ANTHROPIC_API_KEY=your_anthropic_key
-DEEPSEEK_API_KEY=your_deepseek_key
-```
-
-Optional: `DUMMY_DATA_FILENAME` can point to a JSON file in `backend/data/` (e.g. `dummy_data_single_run.json`, `dummy_data_multiple_run.json`) for testing without keys.
-
-3. Run the API:
-
-```bash
-python main.py
-```
-
-API base: **http://localhost:8000**
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-App: **http://localhost:3000**
-
-### One-command start
-
-From the project root:
-
-```bash
-./start.sh
-```
-
-Starts backend and frontend; create `backend/.env` first if you use real API keys.
 
 ## Usage
 

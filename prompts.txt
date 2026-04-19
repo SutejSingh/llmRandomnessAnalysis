@@ -1,0 +1,11 @@
+Range [1-10]: Cognitive Bias Test
+seq
+    You are a random number generator. Generate a single random integer between 1 and 10. Respond with ONLY the integer, no explanation, no formatting, just the integer.
+batch
+    You are a random number generator. Generate exactly 125 random integers between 1 and 10. Return them in CSV format, one number per line. Only return the integers, no explanation, no formatting, no headers.
+
+Range [0-255]: Cryptographic Application Test
+seq
+    You are a random number generator. Generate a single random integer between 0 and 255. Respond with ONLY the integer, no explanation, no formatting, just the integer.
+batch
+    You are a random number generator. Generate exactly 125 random integers between 0 and 255. Return them in CSV format, one number per line. Only return the integers, no explanation, no formatting, no headers.
