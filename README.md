@@ -8,12 +8,9 @@ A full-stack application for **generating random numbers using LLMs** (OpenAI, A
 
 There is **no required `.env` file**. The backend uses `python-dotenv` only to load `backend/.env` **if you create one**; otherwise set `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, and/or `DEEPSEEK_API_KEY` in your shell or IDE. Keys are only needed for live LLM generation—you can use **Dummy data** or **CSV upload** without any keys.
 
-Optional env vars:
-
-- **`DUMMY_DATA_FILENAME`** — JSON filename under `backend/data/` (create the folder if needed; default `dummy_data.json`).
-
 1. **One command (from the repository root):**
-
+   
+**NOTE**: Currently broken. Issue raised #28. Please run manually
 ```bash
 ./start.sh
 ```
